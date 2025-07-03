@@ -335,7 +335,15 @@ with cols[0]:
                 color_discrete_sequence=colores_personalizados)
     
     fig.update_layout(
-        title_x=0.4
+        legend=dict(
+            x=0.8,  
+            y=0.9,
+            xanchor='left',
+            yanchor='middle',
+            font=dict(size=12),
+            bgcolor="rgba(0,0,0,0)"
+        ),
+        title_x = 0.4
     )
 
     st.plotly_chart(fig)
