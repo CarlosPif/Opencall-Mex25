@@ -26,13 +26,13 @@ st.markdown("""
 st.markdown("""
     <style>
     .stApp {
-        background-color: #DEB887;
+        background-color: #00000;
     }
     </style>
 """, unsafe_allow_html=True)
 
 
-st.image("https://images.squarespace-cdn.com/content/v1/67811e8fe702fd5553c65249/749161ba-4abb-4514-9642-edc82c1c9c9d/Decelera-Logo.png?format=1500w", width=500)
+#st.image("https://images.squarespace-cdn.com/content/v1/67811e8fe702fd5553c65249/749161ba-4abb-4514-9642-edc82c1c9c9d/Decelera-Logo.png?format=1500w", width=500)
 
 cols = st.columns(2)
 
