@@ -101,7 +101,8 @@ fig = px.bar(df_plot, x="Hora", y="Registros",
              title=f"Daily applications - {selected_display}",
              labels={"Hora": "Time", "Registros": "Applications"},
              template="plotly_white",
-             height=600)
+             height=600,
+             color_discrete_sequence=["#87CEEB"])
 
 fig.update_layout(yaxis=dict(dtick=1))
 
@@ -169,7 +170,8 @@ fig = px.bar(df_plot, x="Día", y="Registros",
              title=f"Weekly applications - Week of the {selected_week_str}",
              labels={"Día": "Weekday", "Registros": "Applications"},
              template="plotly_white",
-             height=600)
+             height=600,
+             color_discrete_sequence=["#87CEEB"])
 
 total_apps = int(df_week.shape[0])
 
