@@ -32,9 +32,9 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Opencall Decelera Mexico 2025")
+st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h1>**", unsafe_allow_html=True)
 
-# Un conteo general antes de nada
+# Un conteo general antes de nada=======================================================
 cols = st.columns(3)
 total = df.shape[0]
 target = 1200
@@ -44,7 +44,7 @@ cols[0].metric("Current number of applications", f"{total}")
 cols[1].metric("Target number of applications", f"{target}")
 cols[2].metric("Ratio", f"{ratio:.2f}%")
 
-#-----Aplicaciones por dia-------
+#-----Aplicaciones por dia===========================================================
 
 # Conversión de fechas
 df['Creation_date'] = pd.to_datetime(df['Creation_date'], errors='coerce')
@@ -98,7 +98,7 @@ df_plot = pd.DataFrame({
 
 # Gráfico de barras
 fig = px.bar(df_plot, x="Hora", y="Registros",
-             title=f"Daily applications - {selected_display}",
+             title=f"Below you can see the number of applications submitted through the day - {selected_display}",
              labels={"Hora": "Time", "Registros": "Applications"},
              template="plotly_white",
              height=600,
@@ -108,7 +108,7 @@ fig.update_layout(yaxis=dict(dtick=1))
 
 total_apps_day = int(df_day.shape[0])
 
-# Opción A – anotación sobre el gráfico
+# anotación sobre el gráfico
 fig.add_annotation(
     text=f"<b>Total: {total_apps_day}<b>",
     xref="paper", yref="paper",
@@ -119,25 +119,20 @@ fig.add_annotation(
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ===== Aplicaciones por Semana =====
+# ===== Aplicaciones por Semana =========================================================
 
-# 1) Asegúrate de que 'Date' está como datetime pero SIN hora
 df['Date_dt'] = pd.to_datetime(df['Date'])
-
-# 2) Calcula el inicio de semana (lunes) y quítale la hora
 df['Week_start'] = (
-    df['Date_dt']                              # 2025-06-26 00:00:00
+    df['Date_dt']                           
     - pd.to_timedelta(df['Date_dt'].dt.weekday, unit='d')
-).dt.normalize()                               # 2025-06-23 00:00:00
+).dt.normalize()                            
 
-# 3) Guarda una columna SOLO con la fecha para el menú y para comparar
-df['Week_start_date'] = df['Week_start'].dt.date          # datetime.date(2025, 6, 23)
+df['Week_start_date'] = df['Week_start'].dt.date      
 df['Week_start_str']  = df['Week_start_date'].apply(
-    lambda d: d.strftime("%d/%m/%Y"))                      # "23/06/2025"
+    lambda d: d.strftime("%d/%m/%Y"))                 
 
-# 4) Menú de semanas — mostramos los strings bonitos
 today_dt = datetime.date.today()
-current_week_start = (today_dt - datetime.timedelta(days=today_dt.weekday()))  # lunes actual
+current_week_start = (today_dt - datetime.timedelta(days=today_dt.weekday()))  
 current_week_str   = current_week_start.strftime("%d/%m/%Y")
 
 available_weeks = sorted(df['Week_start_str'].unique())
@@ -146,28 +141,24 @@ default_week_idx = (available_weeks.index(current_week_str)
                     else 0)
 selected_week_str = st.selectbox("Select a week", available_weeks, index=default_week_idx)
 
-# 5) Convertimos el string seleccionado a date
 selected_week_date = datetime.datetime.strptime(
     selected_week_str, "%d/%m/%Y").date()
 
-# 6) Filtramos registros de ESA semana (comparando date vs date)
 df_week = df[df['Week_start_date'] == selected_week_date].copy()
 
-# 7) Día de la semana
 df_week['Dia_semana'] = df_week['Date_dt'].dt.day_name().str.lower()
 
 orden_dias = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 df_week['Dia_semana'] = pd.Categorical(df_week['Dia_semana'], categories=orden_dias, ordered=True)
 
-# Conteo por día
 conteo = df_week['Dia_semana'].value_counts().reindex(orden_dias, fill_value=0)
 
-# 8) Gráfico
+#Gráfico
 df_plot = pd.DataFrame({"Día": conteo.index.str.capitalize(),
                         "Registros": conteo})
 
 fig = px.bar(df_plot, x="Día", y="Registros",
-             title=f"Weekly applications - Week of the {selected_week_str}",
+             title=f"Below you can see the number of applications through the week - Week of the {selected_week_str}",
              labels={"Día": "Weekday", "Registros": "Applications"},
              template="plotly_white",
              height=600,
@@ -186,3 +177,71 @@ fig.add_annotation(
 fig.update_layout(yaxis=dict(dtick=1))
 
 st.plotly_chart(fig, use_container_width=True)
+
+#-----Vamos con un Pie Chart de las referencias-----
+cols = st.columns(2)
+
+with cols[0]:
+    reference_data = df['PH1_reference_$startups']
+    reference_count = reference_data.value_counts()
+
+    ref_dict =dict(zip(reference_count.index, [int(reference_count[k]) for k in range(len(reference_count))]))
+    df_ref = pd.DataFrame(list(ref_dict.items()), columns=['Reference', 'Applications'])
+
+    fig = px.pie(df_ref, names='Reference', values='Applications', title='Applicants references')
+
+    fig.update_traces(textinfo="percent")
+
+    fig.update_layout(
+        legend=dict(
+            x=0.8,  
+            y=0.9,
+            xanchor='left',
+            yanchor='middle',
+            font=dict(size=12),
+            bgcolor="rgba(0,0,0,0)"
+        ),
+        title_x = 0.5
+    )
+    st.plotly_chart(fig)
+
+with cols[1]:
+    ph_result = df['Phase1&2_result_mex25'].replace(
+        {
+            "Passed Phase 2": "Passed Phase 2",
+            "Red Flagged at Phase 1": "Failed",
+            "Red Flagged at Phase 2": "Failed"
+        }
+    )
+
+    resultado_count = ph_result.value_counts()
+
+    # Crear DataFrame de conteo
+    df_ph = pd.DataFrame({
+        "Result": resultado_count.index,
+        "Count": resultado_count.values
+    })
+
+    # Calcular porcentajes
+    df_ph['Porcentaje'] = df_ph['Count'] / df_ph['Count'].sum() * 100
+    df_ph['Texto'] = df_ph['Porcentaje'].round(2).astype(str) + "%"
+
+    fig = px.bar(df_ph, x='Result', y='Count', title='Phase 1 and Phase 2 Results', color='Result',
+                color_discrete_map={
+                    "Passed Phase 2": "#87CEEB",
+                    "Failed": "#FFA500"
+                    },
+                    text=df_ph['Texto']
+                )
+
+    fig.update_layout(
+        xaxis_title="Result",
+        yaxis_title="Applications",
+        title_x=0.4,
+        showlegend=False,
+        margin=dict(t=80)
+    )
+
+    fig.update_traces(textposition="outside")
+
+    st.plotly_chart(fig)
