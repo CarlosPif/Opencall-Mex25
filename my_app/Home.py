@@ -34,16 +34,12 @@ st.markdown("""
 
 #st.image("https://images.squarespace-cdn.com/content/v1/67811e8fe702fd5553c65249/749161ba-4abb-4514-9642-edc82c1c9c9d/Decelera-Logo.png?format=1500w", width=500)
 
-cols = st.columns(3)
+cols = st.columns(2)
 
 with cols[0]:
-    if st.button("Time Evolution"):
-        st.switch_page("pages/Evolution.py")
-
-with cols[1]:
     if st.button("Application Metrics"):
         st.switch_page("pages/Applications.py")
 
-with cols[2]:
+with cols[1]:
     if st.button("Score Metrics"):
         st.switch_page("pages/Results.py")
