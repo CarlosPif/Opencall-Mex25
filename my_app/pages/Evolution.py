@@ -32,16 +32,6 @@ st.set_page_config(
     page_title="Opencall Dashboard Decelera Mexico 2025",
     layout="centered"
 )
-st.markdown("**<h1 style='text-align: center;'>Applications Time Evolution</h1>**", unsafe_allow_html=True)
-
-cols = st.columns(3)
-total = df.shape[0]
-target = 1200
-ratio = total / target * 100
-
-cols[0].metric("Current number of applications", f"{total}")
-cols[1].metric("Target number of applications", f"{target}")
-cols[2].metric("Ratio", f"{ratio:.2f}%")
 
 df['Fecha'] = pd.to_datetime(df['Creation_date']).dt.date
 
@@ -68,9 +58,12 @@ fig.add_hline(y=1200, line_color='#FFA500', line_dash='dash', annotation_text='T
 
 # Diseño
 fig.update_layout(
+    title="Applications Time Evolution",
     xaxis_title='Date',
     yaxis_title='Applications',
-    template='plotly_white'
+    template='plotly_white',
+    title_font=dict(size=24, color='black'),
+    title_x=0.3
 )
 
 st.plotly_chart(fig)
