@@ -367,7 +367,7 @@ conteo = Counter(todos_motivos)
 # Convertimos a DataFrame para graficar
 df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons',
+fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons', text='Cantidad',
              color_discrete_sequence=colores_personalizados)
 
 fig.update_layout(
