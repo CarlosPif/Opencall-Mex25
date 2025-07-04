@@ -5,6 +5,7 @@ import plotly.express as px
 import numpy as np
 import datetime
 import plotly.graph_objects as go
+from collections import Counter
 
 # Configuracion de AirTable
 
@@ -47,37 +48,6 @@ cols[2].metric("Ratio", f"{ratio:.2f}%")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
-df['Fecha'] = pd.to_datetime(df['Creation_date']).dt.date
-df_evolucion = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
-df_evolucion = df_evolucion.sort_values('Fecha')
-df_evolucion['Acumulado'] = df_evolucion['Aplicaciones'].cumsum()
-
-# Gráfico de línea acumulada en azul celeste
-
-fig = go.Figure()
-
-fig.add_trace(go.Scatter(
-    x=df_evolucion['Fecha'],
-    y=df_evolucion['Acumulado'],
-    mode='lines+markers',
-    name='Acumulado',
-    line=dict(color='#87CEEB', shape='spline', width=3)
-))
-
-# Línea horizontal de objetivo
-fig.add_hline(y=1200, line_color='#FFA500', line_dash='dash', annotation_text='Target', annotation_position='top right')
-
-# Diseño
-fig.update_layout(
-    title="Applications Time Evolution",
-    xaxis_title='Date',
-    yaxis_title='Applications',
-    template='plotly_white',
-    title_font=dict(size=24, color='black'),
-    title_x=0.4
-)
-
-st.plotly_chart(fig)
 #-----Aplicaciones por dia===========================================================
 
 # Conversión de fechas
@@ -215,6 +185,40 @@ fig.update_layout(yaxis=dict(dtick=1))
 
 st.plotly_chart(fig, use_container_width=True)
 
+#acumulado
+
+df['Fecha'] = pd.to_datetime(df['Creation_date']).dt.date
+df_evolucion = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
+df_evolucion = df_evolucion.sort_values('Fecha')
+df_evolucion['Acumulado'] = df_evolucion['Aplicaciones'].cumsum()
+
+# Gráfico de línea acumulada en azul celeste
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=df_evolucion['Fecha'],
+    y=df_evolucion['Acumulado'],
+    mode='lines+markers',
+    name='Acumulado',
+    line=dict(color='#87CEEB', shape='spline', width=3)
+))
+
+# Línea horizontal de objetivo
+#fig.add_hline(y=1200, line_color='#FFA500', line_dash='dash', annotation_text='Target', annotation_position='top right')
+
+# Diseño
+fig.update_layout(
+    title="Applications Time Evolution",
+    xaxis_title='Date',
+    yaxis_title='Applications',
+    template='plotly_white',
+    title_font=dict(size=24, color='black'),
+    title_x=0.4
+)
+
+st.plotly_chart(fig)
+
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
 #-----Vamos con un Pie Chart de las referencias-----
 cols = st.columns(2)
@@ -257,7 +261,7 @@ with cols[1]:
         {
             "Passed Phase 2": "Passed Phase 2",
             "Red Flagged at Phase 1": "Failed",
-            "Red Flagged at Phase 2": "Failed"
+            "Red Flagged at Phase 2": "Passed Phase 2"
         }
     )
 
@@ -348,3 +352,37 @@ with cols[0]:
 
     st.plotly_chart(fig)
     
+# Vamos a hablar de los red flags
+
+todos_motivos = []
+
+for texto in df["motivos"]:
+    if isinstance(texto, str):
+        motivos = [m.strip() for m in texto.split(". ") if m.strip()]
+        todos_motivos.extend(motivos)
+
+# Contamos los motivos
+conteo = Counter(todos_motivos)
+
+# Convertimos a DataFrame para graficar
+df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
+
+fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons')
+
+fig.update_layout(
+    xaxis_title="",
+    xaxis=dict(
+        tickfont=dict(
+            color='black'
+        )
+    ),
+    yaxis_title="Companies",
+    title_x=0.4,
+    showlegend=False,
+    margin=dict(t=80)
+)
+
+fig.update_traces(textposition="outside", textfont_color='black')
+
+st.plotly_chart(fig)
+
