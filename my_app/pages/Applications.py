@@ -367,7 +367,7 @@ conteo = Counter(todos_motivos)
 # Convertimos a DataFrame para graficar
 df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons', text='Cantidad',
+fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons', text='Cantidad', color='Motivo',
              color_discrete_sequence=colores_personalizados)
 
 fig.update_layout(
@@ -379,11 +379,11 @@ fig.update_layout(
     ),
     yaxis_title="Companies",
     title_x=0.4,
-    showlegend=False,
-    margin=dict(t=80)
+    showlegend=False
 )
 
-fig.update_traces(textposition="outside", textfont_color='black')
+fig.update_traces(textposition="outside", textfont_color='black',
+                  cliponaxis=False)
 
 st.plotly_chart(fig)
 
