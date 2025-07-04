@@ -6,14 +6,18 @@ import numpy as np
 import datetime
 import plotly.graph_objects as go
 from collections import Counter
+import requests
 
 # Configuracion de AirTable
 
-api_key = st.secrets["airtable"]["api_key"]
+api_key_at = st.secrets["airtable"]["api_key"]
 base_id = st.secrets["airtable"]["base_id"]
 table_id = st.secrets["airtable"]["table_id"]
 
-api = Api(api_key)
+api_key_fl = st.secrets['fillout']['api_key']
+form_id = st.secrets['fillout']['form_id']
+
+api = Api(api_key_at)
 table = api.table(base_id, table_id)
 
 # Obtenemos los datos
@@ -37,14 +41,34 @@ st.set_page_config(
 st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h1>**", unsafe_allow_html=True)
 
 # Un conteo general antes de nada=======================================================
-cols = st.columns(3)
+# Sacamos los formularios en progreso
+url = f"https://api.fillout.com/v1/api/forms/{form_id}/submissions"
+headers = {
+    "Authorization": f"Bearer {api_key_fl}"
+}
+params = {
+    "status": "in_progress"
+}
+
+response = requests.get(url, headers=headers, params=params)
+
+if response.status_code == 200:
+    data_ip = response.json()
+    total_ip = data_ip.get("totalResponses", 0)
+
+cols = st.columns([1, 1, 2, 2, 2, 1])
 total = df.shape[0]
 target = 1200
 ratio = total / target * 100
 
-cols[0].metric("Current number of applications", f"{total}")
-cols[1].metric("Target number of applications", f"{target}")
-cols[2].metric("Ratio", f"{ratio:.2f}%")
+cols[2].metric("Current number of applications", f"{total}")
+cols[3].metric("Target number of applications", f"{target}")
+cols[4].metric("Ratio", f"{ratio:.2f}%")
+
+cols = st.columns([1, 1, 2, 2, 1])
+
+cols[2].metric("In progress applications", f"{total_ip}")
+cols[3].metric("Expected number of applications", f"{total_ip + total}")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
@@ -321,7 +345,7 @@ cols[1].metric("Female Founders Percentage", f"{female_percentage:.2f}%")
 
 with cols[0]:
     # Filtrar solo los aprobados
-    df_aprobados = df[df['Phase1&2_result_mex25'] == "Passed Phase 2"]
+    df_aprobados = df[(df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
 
     # Contar las referencias entre los aprobados
     reference_data = df_aprobados['PH1_reference_$startups']
@@ -335,7 +359,7 @@ with cols[0]:
 
     # Generar el Pie Chart
     fig = px.pie(df_ref, names="Referencia", values="Aplicaciones",
-                title="Ph2 References",
+                title="Phase 2 Companies References",
                 color_discrete_sequence=colores_personalizados)
     
     fig.update_layout(
