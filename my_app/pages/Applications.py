@@ -281,6 +281,56 @@ with cols[0]:
     st.plotly_chart(fig)
 
 with cols[1]:
+    # Filtrar solo los aprobados
+    df_aprobados = df[(df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
+
+    # Contar las referencias entre los aprobados
+    reference_data = df_aprobados['PH1_reference_$startups']
+    reference_count = reference_data.value_counts()
+
+    # Preparar DataFrame para el gráfico
+    df_ref = pd.DataFrame({
+        "Referencia": reference_count.index,
+        "Aplicaciones": reference_count.values
+    })
+
+    # Generar el Pie Chart
+    fig = px.pie(df_ref, names="Referencia", values="Aplicaciones",
+                title="Phase 2 Companies References",
+                color_discrete_sequence=colores_personalizados)
+    
+    fig.update_layout(
+        legend=dict(
+            x=0.8,  
+            y=0.9,
+            xanchor='left',
+            yanchor='middle',
+            font=dict(size=12),
+            bgcolor="rgba(0,0,0,0)"
+        ),
+        title_x = 0.4
+    )
+
+    st.plotly_chart(fig)
+
+
+#female founders
+
+founders = 1
+for founder in df['Second founder name']:
+    if founder:
+        founders += 1
+for founder in df['Third founder name']:
+    if founder:
+        founders +=1
+
+female_founders = df['Female'].sum()
+female_percentage = female_founders / founders * 100
+
+cols = st.columns(2)
+cols[1].metric("Female Founders Percentage", f"{female_percentage:.2f}%")
+
+with cols[0]:
     ph_result = df['Phase1&2_result_mex25'].replace(
         {
             "Passed Phase 2": "Passed Phase 2",
@@ -324,55 +374,6 @@ with cols[1]:
     )
 
     fig.update_traces(textposition="outside", textfont_color='black')
-
-    st.plotly_chart(fig)
-
-#female founders
-
-founders = 1
-for founder in df['Second founder name']:
-    if founder:
-        founders += 1
-for founder in df['Third founder name']:
-    if founder:
-        founders +=1
-
-female_founders = df['Female'].sum()
-female_percentage = female_founders / founders * 100
-
-cols = st.columns(2)
-cols[1].metric("Female Founders Percentage", f"{female_percentage:.2f}%")
-
-with cols[0]:
-    # Filtrar solo los aprobados
-    df_aprobados = df[(df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
-
-    # Contar las referencias entre los aprobados
-    reference_data = df_aprobados['PH1_reference_$startups']
-    reference_count = reference_data.value_counts()
-
-    # Preparar DataFrame para el gráfico
-    df_ref = pd.DataFrame({
-        "Referencia": reference_count.index,
-        "Aplicaciones": reference_count.values
-    })
-
-    # Generar el Pie Chart
-    fig = px.pie(df_ref, names="Referencia", values="Aplicaciones",
-                title="Phase 2 Companies References",
-                color_discrete_sequence=colores_personalizados)
-    
-    fig.update_layout(
-        legend=dict(
-            x=0.8,  
-            y=0.9,
-            xanchor='left',
-            yanchor='middle',
-            font=dict(size=12),
-            bgcolor="rgba(0,0,0,0)"
-        ),
-        title_x = 0.4
-    )
 
     st.plotly_chart(fig)
     
