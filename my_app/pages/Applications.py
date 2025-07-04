@@ -356,7 +356,7 @@ with cols[0]:
 
 todos_motivos = []
 
-for texto in df["motivos"]:
+for texto in df["Phase1&2_result_reason_mex25"]:
     if isinstance(texto, str):
         motivos = [m.strip() for m in texto.split(". ") if m.strip()]
         todos_motivos.extend(motivos)
