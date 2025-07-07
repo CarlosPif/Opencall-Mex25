@@ -226,37 +226,69 @@ st.plotly_chart(fig, key="grafica_barras_semana_relativa")
 
 #acumulado-------------------------------------------------------------------------
 
+inicio_2025 = pd.to_datetime("2025-06-25")
+inicio_2024 = pd.to_datetime("2024-06-20")
+
+# Preparamos los datos de 2025
 df['Fecha'] = pd.to_datetime(df['Created']).dt.date
-df_evolucion = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
-df_evolucion = df_evolucion.sort_values('Fecha')
-df_evolucion['Acumulado'] = df_evolucion['Aplicaciones'].cumsum()
+df_evolucion_25 = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
+df_evolucion_25 = df_evolucion_25.sort_values('Fecha')
+df_evolucion_25['Acumulado'] = df_evolucion_25['Aplicaciones'].cumsum()
 
-# Gráfico de línea acumulada en azul celeste
+# Preparamos los datos de 2024
+df_24['Fecha_real'] = pd.to_datetime(df_24['Created']).dt.date
+df_24['Fecha'] = df_24['Fecha_real'] + (inicio_2025.date() - inicio_2024.date())
 
+df_evolucion_24 = df_24.groupby('Fecha').size().reset_index(name='Aplicaciones')
+df_evolucion_24 = df_evolucion_24.sort_values('Fecha')
+df_evolucion_24['Acumulado'] = df_evolucion_24['Aplicaciones'].cumsum()
+
+hoy = pd.Timestamp.today().date()
+
+# Filtrar acumulado de 2025 solo hasta hoy
+df_evolucion_25_filtrado = df_evolucion_25[df_evolucion_25['Fecha'] <= hoy]
+
+# Obtener valor máximo
+max_acumulado_hoy = df_evolucion_25_filtrado['Acumulado'].max()
+limite_superior_y = max_acumulado_hoy + 50
+# Gráfico combinado
 fig = go.Figure()
 
+# Línea azul celeste - 2025
 fig.add_trace(go.Scatter(
-    x=df_evolucion['Fecha'],
-    y=df_evolucion['Acumulado'],
+    x=df_evolucion_25['Fecha'],
+    y=df_evolucion_25['Acumulado'],
     mode='lines+markers',
-    name='Acumulado',
-    line=dict(color='#87CEEB', shape='spline', width=3)
+    name='2025 Accumulated',
+    line=dict(color='#87CEEB', shape='spline', width=3),
+    fill='tozeroy',
+    fillcolor='rgba(135, 206, 235, 0.2)'
 ))
 
-# Línea horizontal de objetivo
-#fig.add_hline(y=1200, line_color='#FFA500', line_dash='dash', annotation_text='Target', annotation_position='top right')
+# Línea naranja - 2024
+fig.add_trace(go.Scatter(
+    x=df_evolucion_24['Fecha'],
+    y=df_evolucion_24['Acumulado'],
+    mode='lines+markers',
+    name='2024 Accumulated',
+    line=dict(color='#FFA500', shape='spline', width=3)
+))
 
 # Diseño
 fig.update_layout(
-    title="Applications Time Evolution",
+    title="Applications Time Evolution - 2025 vs 2024",
     xaxis_title='Date',
     yaxis_title='Applications',
     template='plotly_white',
     title_font=dict(size=24, color='black'),
-    title_x=0.4
+    title_x=0.3,
+    xaxis_range=[df_evolucion_25['Fecha'].min(), hoy],
+     yaxis_range=[0, limite_superior_y]
 )
 
+# Mostrar gráfico
 st.plotly_chart(fig)
+
 
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
 #-----Vamos con un Pie Chart de las referencias-----
