@@ -11,22 +11,23 @@ import requests
 # Configuracion de AirTable
 
 api_key_at = st.secrets["airtable"]["api_key"]
-base_id = st.secrets["airtable"]["base_id"]
-table_id = st.secrets["airtable"]["table_id"]
+base_id = st.secrets["airtable"]["base_24_id"]
+table_id = st.secrets["airtable"]["table_24_id"]
 
-#tambien al CRM para mex24
-base_24_id = st.secrets["airtable"]["base_24_id"]
-table_24_id = st.secrets["airtable"]["table_24_id"]
+#tabla de dealflow
+base_id_df = st.secrets["airtable"]["base_id"]
+table_id_df = st.secrets["airtable"]["table_id"]
 
 api_key_fl = st.secrets['fillout']['api_key']
 form_id = st.secrets['fillout']['form_id']
 
 api = Api(api_key_at)
 table = api.table(base_id, table_id)
-table_24 = api.table(base_24_id, table_24_id)
+table_24 = api.table(base_id, table_id)
+table_df = api.table(base_id_df, table_id_df)
 
 # Obtenemos los datos
-records = table.all(view='Applicants Mex25')
+records = table.all(view='Applicants_MEX25')
 data = [record['fields'] for record in records]
 df = pd.DataFrame(data)
 
@@ -34,6 +35,11 @@ df = pd.DataFrame(data)
 records_24 = table_24.all(view='Applicants DEC MEXICO 2024')
 data_24 = [record['fields'] for record in records_24]
 df_24 = pd.DataFrame(data_24)
+
+#y para el dealflow
+records_df = table_df.all(view='Applicants Mex25')
+data_df = [record['fields'] for record in records_df]
+df_df = pd.DataFrame(data_df)
 
 def fix_cell(val):
     if isinstance(val, dict) and "specialValue" in val:
@@ -83,9 +89,39 @@ cols[3].metric("Ratio", f"{ratio:.2f}%")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
-# Asegurarse de que las fechas están bien
+#======Aplicaciones por dia===========================
 df['Created'] = pd.to_datetime(df['Created'], errors='coerce')
 df_24['Created'] = pd.to_datetime(df_24['Created'], errors='coerce')
+
+df['Created_date'] = df['Created'].dt.date
+df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
+df_evolucion = df_evolucion.sort_values('Created_date')
+
+# Gráfico de líneas con área rellena
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(
+    x=df_evolucion['Created_date'],
+    y=df_evolucion['Aplicaciones'],
+    mode='lines+markers',
+    name='Applications per day',
+    line=dict(color='skyblue', shape='spline', width=3),
+    fill='tozeroy',
+    fillcolor='rgba(135, 206, 235, 0.2)'
+))
+
+# Diseño
+fig.update_layout(
+    title="Applications received by day",
+    xaxis_title='Date',
+    yaxis_title='Applications',
+    template='plotly_white',
+    title_font=dict(size=20),
+    title_x=0.4
+)
+
+# Mostrar gráfico en Streamlit
+st.plotly_chart(fig)
 
 # Filtrar solo datos de 2024 en df_24
 df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
@@ -119,8 +155,24 @@ semanas_disp_df['etiqueta'] = "Week " + semanas_disp_df['semana_relativa'].astyp
 # Crear diccionario {etiqueta: semana_relativa}
 diccionario_semanas = dict(zip(semanas_disp_df['etiqueta'], semanas_disp_df['semana_relativa']))
 
+hoy = pd.Timestamp.today().normalize()
+semana_relativa_actual = ((hoy - inicio_2025).days // 7) + 1
+
+# Buscar la etiqueta correspondiente
+etiqueta_actual = None
+for etiqueta, semana in diccionario_semanas.items():
+    if semana == semana_relativa_actual:
+        etiqueta_actual = etiqueta
+        break
+
+# Seleccionar por defecto
+if etiqueta_actual:
+    default_index = list(diccionario_semanas.keys()).index(etiqueta_actual)
+else:
+    default_index = len(diccionario_semanas) - 1  # Última semana disponible
+
 # Dropdown con etiquetas amigables
-semana_etiqueta_seleccionada = st.selectbox('Select campaign week', list(diccionario_semanas.keys()))
+semana_etiqueta_seleccionada = st.selectbox('Select campaign week', list(diccionario_semanas.keys()), index=default_index)
 
 # Obtener la semana relativa seleccionada
 semana_relativa_seleccionada = diccionario_semanas[semana_etiqueta_seleccionada]
@@ -174,7 +226,7 @@ st.plotly_chart(fig, key="grafica_barras_semana_relativa")
 
 #acumulado-------------------------------------------------------------------------
 
-df['Fecha'] = pd.to_datetime(df['Creation_date']).dt.date
+df['Fecha'] = pd.to_datetime(df['Created']).dt.date
 df_evolucion = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
 df_evolucion = df_evolucion.sort_values('Fecha')
 df_evolucion['Acumulado'] = df_evolucion['Aplicaciones'].cumsum()
@@ -245,7 +297,7 @@ with cols[0]:
 
 with cols[1]:
     # Filtrar solo los aprobados
-    df_aprobados = df[(df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
+    df_aprobados = df_df[(df_df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df_df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
 
     # Contar las referencias entre los aprobados
     reference_data = df_aprobados['PH1_reference_$startups']
@@ -322,7 +374,7 @@ with cols[1]:
     st.plotly_chart(fig)
 
 with cols[0]:
-    ph_result = df['Phase1&2_result_mex25'].replace(
+    ph_result = df_df['Phase1&2_result_mex25'].replace(
         {
             "Passed Phase 2": "Passed Phase 2",
             "Red Flagged at Phase 1": "Failed at Phase 1",
@@ -372,7 +424,7 @@ with cols[0]:
 
 todos_motivos = []
 
-for texto in df["Phase1&2_result_reason_mex25"]:
+for texto in df_df["Phase1&2_result_reason_mex25"]:
     if isinstance(texto, str):
         motivos = [m.strip() for m in texto.split(". ") if m.strip()]
         todos_motivos.extend(motivos)
