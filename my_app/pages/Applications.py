@@ -75,13 +75,13 @@ st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 #-----Aplicaciones por dia===========================================================
 
 # Conversión de fechas
-df['Creation_date'] = pd.to_datetime(df['Creation_date'], errors='coerce')
-df = df.dropna(subset=['Creation_date'])
-df['Date'] = df['Creation_date'].dt.date
+df['Created'] = pd.to_datetime(df['Created'], errors='coerce')
+df = df.dropna(subset=['Created'])
+df['Date'] = df['Created'].dt.date
 
 # Columna para mostrar en el dropdown en formato "2 de diciembre"
 
-df['Date_display'] = df['Creation_date'].dt.strftime("%B") + " " +  df['Creation_date'].dt.day.astype(str) + "th"
+df['Date_display'] = df['Created'].dt.strftime("%B") + " " +  df['Created'].dt.day.astype(str) + "th"
 date_display_map = dict(zip(df['Date_display'], df['Date']))
 available_dates_display = sorted(date_display_map.keys(), key=lambda x: date_display_map[x])
 
@@ -106,7 +106,7 @@ selected_date = date_display_map[selected_display]
 df_day = df[df['Date'] == selected_date].copy()
 
 # Crear columna de hora
-df_day['Hora'] = df_day['Creation_date'].dt.hour
+df_day['Hora'] = df_day['Created'].dt.hour
 
 # Conteo por hora
 hour_count = df_day['Hora'].value_counts().sort_index()
@@ -244,7 +244,6 @@ fig.update_layout(
 st.plotly_chart(fig)
 
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
-st.markdown("<h4>Comparison of how companies hear about the program and the quality of those references</h4>", unsafe_allow_html=True)
 #-----Vamos con un Pie Chart de las referencias-----
 cols = st.columns(2)
 colores_personalizados = [
