@@ -62,13 +62,13 @@ target = 1200
 ratio = total / target * 100
 
 cols[2].metric("Current number of applications", f"{total}")
-cols[3].metric("Target number of applications", f"{target}")
-cols[4].metric("Ratio", f"{ratio:.2f}%")
+cols[3].metric("In progress applications", f"{total_ip}")
+cols[4].metric("Total number of applications", f"{total_ip + total}")
 
 cols = st.columns([1, 1, 2, 2, 1])
 
-cols[2].metric("In progress applications", f"{total_ip}")
-cols[3].metric("Assumed number of applications", f"{total_ip + total}")
+cols[2].metric("Target number of applications", f"{target}")
+cols[3].metric("Ratio", f"{ratio:.2f}%")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
