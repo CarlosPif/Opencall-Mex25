@@ -244,6 +244,7 @@ fig.update_layout(
 st.plotly_chart(fig)
 
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
+st.markdown("<h4>Comparison of how companies hear about the program and the quality of those references</h4>", unsafe_allow_html=True)
 #-----Vamos con un Pie Chart de las referencias-----
 cols = st.columns(2)
 colores_personalizados = [
@@ -262,7 +263,7 @@ with cols[0]:
     ref_dict =dict(zip(reference_count.index, [int(reference_count[k]) for k in range(len(reference_count))]))
     df_ref = pd.DataFrame(list(ref_dict.items()), columns=['Reference', 'Applications'])
 
-    fig = px.pie(df_ref, names='Reference', values='Applications', title='Applicants references',
+    fig = px.pie(df_ref, names='Reference', values='Applications', title=' Total Applications References',
                  color_discrete_sequence=colores_personalizados)
 
     fig.update_traces(textinfo="percent")
@@ -296,7 +297,7 @@ with cols[1]:
 
     # Generar el Pie Chart
     fig = px.pie(df_ref, names="Referencia", values="Aplicaciones",
-                title="Phase 2 Companies References",
+                title="Phase 2 Applications References",
                 color_discrete_sequence=colores_personalizados)
     
     fig.update_layout(
@@ -325,16 +326,44 @@ for founder in df['Third founder name']:
         founders +=1
 
 female_founders = df['Female'].sum()
+male_founders = founders - female_founders
 female_percentage = female_founders / founders * 100
 
 cols = st.columns(2)
-cols[1].metric("Female Founders Percentage", f"{female_percentage:.2f}%")
+
+with cols[1]:
+    data = {
+        'Gender': ['Female founders', 'Male founders'],
+        'Counts': [female_founders, male_founders]
+    }
+
+    fig = px.pie(
+        data,
+        names='Gender',
+        values='Counts',
+        title='Male and Female Founders',
+        color_discrete_sequence=colores_personalizados
+    )
+
+    fig.update_layout(
+        legend=dict(
+            x=0.8,  
+            y=0.9,
+            xanchor='left',
+            yanchor='middle',
+            font=dict(size=12),
+            bgcolor="rgba(0,0,0,0)"
+        ),
+        title_x = 0.4
+    )
+
+    st.plotly_chart(fig)
 
 with cols[0]:
     ph_result = df['Phase1&2_result_mex25'].replace(
         {
             "Passed Phase 2": "Passed Phase 2",
-            "Red Flagged at Phase 1": "Failed",
+            "Red Flagged at Phase 1": "Failed at Phase 1",
             "Red Flagged at Phase 2": "Passed Phase 2"
         }
     )
@@ -354,9 +383,9 @@ with cols[0]:
     fig = px.bar(df_ph, x='Result', y='Count', title='Phase 1 and Phase 2 Results', color='Result',
                 color_discrete_map={
                     "Passed Phase 2": "#87CEEB",
-                    "Failed": "#FFA500"
+                    "Failed at Phase 1": "#FFA500"
                     },
-                    category_orders={'Result': ['Passed Phase 2', 'Failed']},
+                    category_orders={'Result': ['Passed Phase 2', 'Failed at Phase 1']},
                     text=df_ph['Texto']
                 )
 
