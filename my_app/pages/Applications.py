@@ -127,6 +127,8 @@ semana_relativa_seleccionada = diccionario_semanas[semana_etiqueta_seleccionada]
 
 # Filtrar los datos de esa misma semana relativa en ambos años
 df_filtrado = df_comparado[df_comparado['semana_relativa'] == semana_relativa_seleccionada]
+total_aplicaciones = df_filtrado[df_filtrado['year'] == 2025].shape[0]
+total_aplicaciones_24 = df_filtrado[df_filtrado['year'] == 2024].shape[0]
 
 # Agrupar por día de la semana y año
 conteo_dias = df_filtrado.groupby(['weekday', 'year']).size().reset_index(name='count')
@@ -151,6 +153,15 @@ fig = px.bar(
     template="plotly_white",
     color_discrete_sequence=["#FFA500", "#87CEEB"],
     height=600
+)
+
+fig.add_annotation(
+    text=f"<b>Total 2025: {total_aplicaciones}</b><br><b>Total 2024: {total_aplicaciones_24}",
+    xref="paper", yref="paper",
+    x=0, y=1.1,
+    showarrow=False,
+    font=dict(size=16, color="black"),
+    bgcolor="white",
 )
 
 fig.update_traces(textposition='outside')
