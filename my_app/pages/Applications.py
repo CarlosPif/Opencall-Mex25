@@ -97,7 +97,7 @@ for disp, d in date_display_map.items():
 # Si está presente => usa su posición; si no, caída a 0
 default_day_idx = (available_dates_display.index(today_disp)
                    if today_disp in available_dates_display
-                   else 0)
+                   else len(available_dates_display)-1)
 
 selected_display = st.selectbox("Select the date", available_dates_display, index=default_day_idx)
 selected_date = date_display_map[selected_display]
@@ -168,7 +168,7 @@ current_week_str   = current_week_start.strftime("%d/%m/%Y")
 available_weeks = sorted(df['Week_start_str'].unique())
 default_week_idx = (available_weeks.index(current_week_str)
                     if current_week_str in available_weeks
-                    else 0)
+                    else len(available_weeks)-1)
 selected_week_str = st.selectbox("Select a week", available_weeks, index=default_week_idx)
 
 selected_week_date = datetime.datetime.strptime(
