@@ -14,16 +14,26 @@ api_key_at = st.secrets["airtable"]["api_key"]
 base_id = st.secrets["airtable"]["base_id"]
 table_id = st.secrets["airtable"]["table_id"]
 
+#tambien al CRM para mex24
+base_24_id = st.secrets["airtable"]["base_24_id"]
+table_24_id = st.secrets["airtable"]["table_24_id"]
+
 api_key_fl = st.secrets['fillout']['api_key']
 form_id = st.secrets['fillout']['form_id']
 
 api = Api(api_key_at)
 table = api.table(base_id, table_id)
+table_24 = api.table(base_24_id, table_24_id)
 
 # Obtenemos los datos
 records = table.all(view='Applicants Mex25')
 data = [record['fields'] for record in records]
 df = pd.DataFrame(data)
+
+# y para mex24
+records_24 = table_24.all(view='Applicants DEC MEXICO 2024')
+data_24 = [record['fields'] for record in records_24]
+df_24 = pd.DataFrame(data_24)
 
 def fix_cell(val):
     if isinstance(val, dict) and "specialValue" in val:
@@ -31,6 +41,7 @@ def fix_cell(val):
     return val
 
 df = df.applymap(fix_cell)
+df_24 = df_24.applymap(fix_cell)
 
 # Comenzamos con el dashboard
 st.set_page_config(
@@ -72,74 +83,85 @@ cols[3].metric("Ratio", f"{ratio:.2f}%")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
-#-----Aplicaciones por dia===========================================================
-
-# Conversión de fechas
+# Asegurarse de que las fechas están bien
 df['Created'] = pd.to_datetime(df['Created'], errors='coerce')
-df = df.dropna(subset=['Created'])
-df['Date'] = df['Created'].dt.date
+df_24['Created'] = pd.to_datetime(df_24['Created'], errors='coerce')
 
-# ===== Aplicaciones por Semana =========================================================
+# Filtrar solo datos de 2024 en df_24
+df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
 
-df['Date_dt'] = pd.to_datetime(df['Date'])
-df['Week_start'] = (
-    df['Date_dt']                           
-    - pd.to_timedelta(df['Date_dt'].dt.weekday, unit='d')
-).dt.normalize()                            
+# Calcular día de la semana y año
+df['weekday'] = df['Created'].dt.day_name()
+df['year'] = 2025
 
-df['Week_start_date'] = df['Week_start'].dt.date      
-df['Week_start_str']  = df['Week_start_date'].apply(
-    lambda d: d.strftime("%d/%m/%Y"))                 
+df_24['weekday'] = df_24['Created'].dt.day_name()
+df_24['year'] = 2024
 
-today_dt = datetime.date.today()
-current_week_start = (today_dt - datetime.timedelta(days=today_dt.weekday()))  
-current_week_str   = current_week_start.strftime("%d/%m/%Y")
+# Definir el inicio de campaña para cada dataset
+inicio_2025 = pd.to_datetime("30-06-2025")
+inicio_2024 = pd.to_datetime("16-06-2024")
 
-available_weeks = sorted(df['Week_start_str'].unique())
-default_week_idx = (available_weeks.index(current_week_str)
-                    if current_week_str in available_weeks
-                    else len(available_weeks)-1)
-selected_week_str = st.selectbox("Select a week", available_weeks, index=default_week_idx)
+# Calcular semana relativa
+df['semana_relativa'] = ((df['Created'] - inicio_2025).dt.days // 7) + 1
+df_24['semana_relativa'] = ((df_24['Created'] - inicio_2024).dt.days // 7) + 1
 
-selected_week_date = datetime.datetime.strptime(
-    selected_week_str, "%d/%m/%Y").date()
+# Calcular el lunes de cada semana para etiqueta visual
+df['week_start'] = df['Created'] - pd.to_timedelta(df['Created'].dt.dayofweek, unit='D')
+df_24['week_start'] = df_24['Created'] - pd.to_timedelta(df_24['Created'].dt.dayofweek, unit='D')
 
-df_week = df[df['Week_start_date'] == selected_week_date].copy()
+# Unir los DataFrames
+df_comparado = pd.concat([df, df_24])
 
-df_week['Dia_semana'] = df_week['Date_dt'].dt.day_name().str.lower()
+# Crear lista de semanas relativas y su primer día, solo para 2025
+semanas_disp_df = df[df['semana_relativa'] > 0][['semana_relativa', 'week_start']].drop_duplicates().sort_values('semana_relativa')
+semanas_disp_df['etiqueta'] = "Week " + semanas_disp_df['semana_relativa'].astype(str) + " (" + semanas_disp_df['week_start'].dt.strftime("%Y-%m-%d") + ")"
 
-orden_dias = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-df_week['Dia_semana'] = pd.Categorical(df_week['Dia_semana'], categories=orden_dias, ordered=True)
+# Crear diccionario {etiqueta: semana_relativa}
+diccionario_semanas = dict(zip(semanas_disp_df['etiqueta'], semanas_disp_df['semana_relativa']))
 
-conteo = df_week['Dia_semana'].value_counts().reindex(orden_dias, fill_value=0)
+# Dropdown con etiquetas amigables
+semana_etiqueta_seleccionada = st.selectbox('Select campaign week', list(diccionario_semanas.keys()))
 
-#Gráfico
-df_plot = pd.DataFrame({"Día": conteo.index.str.capitalize(),
-                        "Registros": conteo})
+# Obtener la semana relativa seleccionada
+semana_relativa_seleccionada = diccionario_semanas[semana_etiqueta_seleccionada]
 
-fig = px.bar(df_plot, x="Día", y="Registros", text='Registros',
-             title=f"Below you can see the number of applications through the week - Week of the {selected_week_str}",
-             labels={"Día": "Weekday", "Registros": "Applications"},
-             template="plotly_white",
-             height=600,
-             color_discrete_sequence=["#87CEEB"])
+# Filtrar los datos de esa misma semana relativa en ambos años
+df_filtrado = df_comparado[df_comparado['semana_relativa'] == semana_relativa_seleccionada]
 
-total_apps = int(df_week.shape[0])
+# Agrupar por día de la semana y año
+conteo_dias = df_filtrado.groupby(['weekday', 'year']).size().reset_index(name='count')
 
-fig.add_annotation(
-    text=f"<b>Total: {total_apps}<b>",
-    xref="paper", yref="paper",
-    x=0, y=1,          # posición a la derecha del título
-    showarrow=False,
-    font=dict(size=18, color='black')
+# Orden correcto de días
+dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+conteo_dias['weekday'] = pd.Categorical(conteo_dias['weekday'], categories=dias_orden, ordered=True)
+conteo_dias = conteo_dias.sort_values('weekday')
+
+# Asegurar que 'year' es string para colores categóricos
+conteo_dias['year'] = conteo_dias['year'].astype(str)
+
+# Gráfico de barras agrupadas
+fig = px.bar(
+    conteo_dias,
+    x="weekday",
+    y="count",
+    color='year',
+    barmode='group',
+    text='count',
+    title=f"Applications by Day - Campaign Week {semana_relativa_seleccionada} Comparison",
+    template="plotly_white",
+    color_discrete_sequence=["#FFA500", "#87CEEB"],
+    height=600
 )
-fig.update_traces(textposition='outside')
 
+fig.update_traces(textposition='outside')
 fig.update_layout(yaxis=dict(dtick=1))
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, key="grafica_barras_semana_relativa")
 
-#acumulado
+
+
+
+#acumulado-------------------------------------------------------------------------
 
 df['Fecha'] = pd.to_datetime(df['Creation_date']).dt.date
 df_evolucion = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
