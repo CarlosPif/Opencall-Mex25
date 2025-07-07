@@ -68,7 +68,7 @@ cols[4].metric("Ratio", f"{ratio:.2f}%")
 cols = st.columns([1, 1, 2, 2, 1])
 
 cols[2].metric("In progress applications", f"{total_ip}")
-cols[3].metric("Expected number of applications", f"{total_ip + total}")
+cols[3].metric("Assumed number of applications", f"{total_ip + total}")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
@@ -94,7 +94,7 @@ for disp, d in date_display_map.items():
         today_disp = disp
         break
 
-# Si está presente => usa su posición; si no, caída a 0
+# Si está presente => usa su posición; si no, caída al anterior
 default_day_idx = (available_dates_display.index(today_disp)
                    if today_disp in available_dates_display
                    else len(available_dates_display)-1)
