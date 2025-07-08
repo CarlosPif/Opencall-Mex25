@@ -7,6 +7,7 @@ import datetime
 import plotly.graph_objects as go
 from collections import Counter
 import requests
+import pytz
 
 # Configuracion de AirTable
 
@@ -37,7 +38,7 @@ data_24 = [record['fields'] for record in records_24]
 df_24 = pd.DataFrame(data_24)
 
 #y para el dealflow
-records_df = table_df.all(view='Applicants Mex25')
+records_df = table_df.all(view='Applicants_Phase')
 data_df = [record['fields'] for record in records_df]
 df_df = pd.DataFrame(data_df)
 
@@ -90,8 +91,8 @@ cols[3].metric("Ratio", f"{ratio:.2f}%")
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
 #======Aplicaciones por dia===========================
-df['Created'] = pd.to_datetime(df['Created'], errors='coerce')
-df_24['Created'] = pd.to_datetime(df_24['Created'], errors='coerce')
+df['Created'] = pd.to_datetime(df['Created'], errors='coerce').dt.tz_localize(None)
+df_24['Created'] = pd.to_datetime(df_24['Created'], errors='coerce').dt.tz_localize(None)
 
 df['Created_date'] = df['Created'].dt.date
 df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
@@ -303,7 +304,9 @@ colores_personalizados = [
 ]
 
 with cols[0]:
-    reference_data = df['PH1_reference_$startups']
+    reference_data = df['PH1_reference_$startups'].replace(
+        {"Referral from within Decelera's community (who?, please specify)": "Referral"}
+    )
     reference_count = reference_data.value_counts()
 
     ref_dict =dict(zip(reference_count.index, [int(reference_count[k]) for k in range(len(reference_count))]))
@@ -332,7 +335,9 @@ with cols[1]:
     df_aprobados = df_df[(df_df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df_df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
 
     # Contar las referencias entre los aprobados
-    reference_data = df_aprobados['PH1_reference_$startups']
+    reference_data = df_aprobados['PH1_reference_$startups'].replace(
+        {"Referral from within Decelera's community (who?, please specify)": "Referral"}
+    )
     reference_count = reference_data.value_counts()
 
     # Preparar DataFrame para el gráfico
@@ -454,35 +459,72 @@ with cols[0]:
     
 # Vamos a hablar de los red flags
 
-todos_motivos = []
+cols = st.columns(2)
 
-for texto in df_df["Phase1&2_result_reason_mex25"]:
-    if isinstance(texto, str):
-        motivos = [m.strip() for m in texto.split(". ") if m.strip()]
-        todos_motivos.extend(motivos)
+with cols[0]:
+    todos_motivos = []
 
-# Contamos los motivos
-conteo = Counter(todos_motivos)
+    for texto in df_df["Phase1_result_reason_mex25"]:
+        if isinstance(texto, str):
+            motivos = [m.strip() for m in texto.split(". ") if m.strip()]
+            todos_motivos.extend(motivos)
 
-# Convertimos a DataFrame para graficar
-df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
+    # Contamos los motivos
+    conteo = Counter(todos_motivos)
 
-fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Red Flag Reasons', text='Cantidad', color='Motivo',
-             color_discrete_sequence=colores_personalizados)
+    # Convertimos a DataFrame para graficar
+    df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-fig.update_layout(
-    xaxis_title="",
-    xaxis=dict(
-        tickfont=dict(
-            color='black'
-        )
-    ),
-    yaxis_title="Companies",
-    title_x=0.4,
-    showlegend=False
-)
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Phase 1 Red Flag Reasons', text='Cantidad', color='Motivo',
+                color_discrete_sequence=colores_personalizados)
 
-fig.update_traces(textposition="outside", textfont_color='black',
-                  cliponaxis=False)
+    fig.update_layout(
+        xaxis_title="",
+        xaxis=dict(
+            tickfont=dict(
+                color='black'
+            )
+        ),
+        yaxis_title="Companies",
+        title_x=0.4,
+        showlegend=False
+    )
 
-st.plotly_chart(fig)
+    fig.update_traces(textposition="outside", textfont_color='black',
+                    cliponaxis=False)
+
+    st.plotly_chart(fig)
+
+with cols[1]:
+    todos_motivos = []
+
+    for texto in df_df["Phase2_result_reason_mex25"]:
+        if isinstance(texto, str):
+            motivos = [m.strip() for m in texto.split(". ") if m.strip()]
+            todos_motivos.extend(motivos)
+
+    # Contamos los motivos
+    conteo = Counter(todos_motivos)
+
+    # Convertimos a DataFrame para graficar
+    df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
+
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Pahse 2 Red Flag Reasons', text='Cantidad', color='Motivo',
+                color_discrete_sequence=colores_personalizados)
+
+    fig.update_layout(
+        xaxis_title="",
+        xaxis=dict(
+            tickfont=dict(
+                color='black'
+            )
+        ),
+        yaxis_title="Companies",
+        title_x=0.4,
+        showlegend=False
+    )
+
+    fig.update_traces(textposition="outside", textfont_color='black',
+                    cliponaxis=False)
+
+    st.plotly_chart(fig)
