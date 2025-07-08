@@ -203,7 +203,7 @@ fig = px.bar(
     text='count',
     title=f"Applications by Day - Campaign Week {semana_relativa_seleccionada} Comparison",
     template="plotly_white",
-    color_discrete_sequence=["#87CEEB", "#FFA500"],
+    color_discrete_sequence=["#FFA500", "#87CEEB"],
     height=600
 )
 
@@ -486,4 +486,3 @@ fig.update_traces(textposition="outside", textfont_color='black',
                   cliponaxis=False)
 
 st.plotly_chart(fig)
-
