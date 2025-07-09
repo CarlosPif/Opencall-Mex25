@@ -28,17 +28,17 @@ table_24 = api.table(base_id, table_id)
 table_df = api.table(base_id_df, table_id_df)
 
 # Obtenemos los datos
-records = table.all(view='Applicants_MEX25')
+records = table.all(view='Applicants_MEX25', time_zone="Europe/Madrid")
 data = [record['fields'] for record in records]
 df = pd.DataFrame(data)
 
 # y para mex24
-records_24 = table_24.all(view='Applicants DEC MEXICO 2024')
+records_24 = table_24.all(view='Applicants DEC MEXICO 2024', time_zone="Europe/Madrid")
 data_24 = [record['fields'] for record in records_24]
 df_24 = pd.DataFrame(data_24)
 
 #y para el dealflow
-records_df = table_df.all(view='Applicants_Phase')
+records_df = table_df.all(view='Applicants_Phase', time_zone="Europe/Madrid")
 data_df = [record['fields'] for record in records_df]
 df_df = pd.DataFrame(data_df)
 
@@ -91,8 +91,8 @@ cols[3].metric("Ratio", f"{ratio:.2f}%")
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
 #======Aplicaciones por dia===========================
-df['Created'] = pd.to_datetime(df['Created'], errors='coerce').dt.tz_localize(None)
-df_24['Created'] = pd.to_datetime(df_24['Created'], errors='coerce').dt.tz_localize(None)
+df['Created'] = pd.to_datetime(df['Created_str'], errors='coerce').dt.tz_localize(None)
+df_24['Created'] = pd.to_datetime(df_24['Created_str'], errors='coerce').dt.tz_localize(None)
 
 df['Created_date'] = df['Created'].dt.date
 df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
@@ -521,6 +521,7 @@ with cols[1]:
         ),
         yaxis_title="Companies",
         title_x=0.4,
+        xaxis_tickangle=45,
         showlegend=False
     )
 
