@@ -87,48 +87,130 @@ cols[2].metric("Target number of applications", f"{target}")
 cols[3].metric("Ratio", f"{ratio:.2f}%")
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
+st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
 
 #======Aplicaciones por dia===========================
 # Definir el inicio de campaña para cada dataset
-inicio_2025 = pd.to_datetime("25-06-2025")
-inicio_2024 = pd.to_datetime("20-06-2024")
-time_delta = inicio_2025 - inicio_2024
 
-df['Created'] = pd.to_datetime(df['Created_str'], errors='coerce').dt.tz_localize(None)
-df_24['Created'] = pd.to_datetime(df_24['Created_str'], errors='coerce').dt.tz_localize(None)
+cols = st.columns([4/5, 6/5])
 
-# Filtrar solo datos de 2024 en df_24
-df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
+with st.spinner('Calculating number of applications...'):
+    with cols[0]:
+        inicio_2025 = pd.to_datetime("25-06-2025")
+        inicio_2024 = pd.to_datetime("20-06-2024")
+        time_delta = inicio_2025 - inicio_2024
 
-df['Created_date'] = df['Created'].dt.date
-df_24['Created_date'] = df_24['Created'].dt.date + time_delta
-df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
-df_evolucion = df_evolucion.sort_values('Created_date')
-df_24_evolucion = df_24.groupby('Created_date').size().reset_index(name='Aplicaciones')
-df_24_evolucion = df_24_evolucion.sort_values('Created_date')
+        df['Created'] = pd.to_datetime(df['Created_str'], errors='coerce').dt.tz_localize(None)
+        df_24['Created'] = pd.to_datetime(df_24['Created_str'], errors='coerce').dt.tz_localize(None)
 
-# Gráfico de líneas con área rellena
+        # Filtrar solo datos de 2024 en df_24
+        df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
 
-fig = go.Figure()
+        df['Created_date'] = df['Created'].dt.date
+        df_24['Created_date'] = df_24['Created'].dt.date + time_delta
+        df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
+        df_evolucion = df_evolucion.sort_values('Created_date')
+        df_24_evolucion = df_24.groupby('Created_date').size().reset_index(name='Aplicaciones')
+        df_24_evolucion = df_24_evolucion.sort_values('Created_date')
 
-fig.add_trace(go.Scatter(
-    x=df_evolucion['Created_date'],
-    y=df_evolucion['Aplicaciones'],
-    mode='lines+markers',
-    name='Applications per day (Mexico 2025)',
-    line=dict(color='skyblue', shape='spline', width=3),
-    fill='tozeroy',
-    fillcolor='rgba(135, 206, 235, 0.2)'
-))
+        # Gráfico de líneas con área rellena
 
-fig.add_trace(go.Scatter(
-    x=df_24_evolucion['Created_date'],
-    y=df_24_evolucion['Aplicaciones'],
-    mode='lines+markers',
-    name='Applications per day (Mexico 2024)',
-    line=dict(color='orange', shape='spline', width=3),
-))
+        hoy = pd.Timestamp.today().date()
 
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=df_evolucion['Created_date'],
+            y=df_evolucion['Aplicaciones'],
+            mode='lines+markers',
+            name='Applications per day (Mexico 2025)',
+            line=dict(color='skyblue', shape='spline', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(135, 206, 235, 0.2)'
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=df_24_evolucion['Created_date'],
+            y=df_24_evolucion['Aplicaciones'],
+            mode='lines+markers',
+            name='Applications per day (Mexico 2024)',
+            line=dict(color='orange', shape='spline', width=3),
+        ))
+
+        fig.update_layout(
+            title="Applications received by day",
+            xaxis_title='Date',
+            yaxis_title='Applications',
+            template='plotly_white',
+            title_font=dict(size=20),
+            title_x=0.4,
+            legend=dict(
+                x=0.95,         # Posición horizontal (0=izq, 1=der)
+                y=0.95,         # Posición vertical (0=abajo, 1=arriba)
+                xanchor='right',  # El punto de anclaje (left, center, right)
+                yanchor='top',    # El punto de anclaje (top, middle, bottom)
+                bgcolor='rgba(255,255,255,0.5)',  # Fondo blanco semitransparente
+                bordercolor='gray',
+                borderwidth=1,
+                font=dict(color='black')
+            ),
+            xaxis_range = [df_evolucion['Created_date'].min(), hoy],
+            yaxis_range=[0, df_evolucion['Aplicaciones'].max() + 10]
+        )
+
+        # Mostrar gráfico en Streamlit
+        st.plotly_chart(fig)
+
+#Referencias de las aplicaciones
+with st.spinner('Counting application references...'):
+    with cols[1]:
+            reference_data = df['PH1_reference_$startups'].replace(
+            {"Referral from within Decelera's community (who?, please specify)": "Referral"}
+        )
+            reference_count = reference_data.value_counts().reset_index(name='count')
+
+            total = reference_count['count'].sum()
+            reference_count['pct'] = (reference_count['count'] / total * 100).round(1)
+            reference_count['text'] = reference_count['count'].astype(str) + "(" + reference_count['pct'].astype(str) + "%)"
+            
+            fig = go.Figure()
+
+            # Línea (el palito)
+            fig.add_trace(go.Scatter(
+                y=reference_count['count'],
+                x=reference_count['PH1_reference_$startups'],
+                mode='lines',
+                line=dict(color='skyblue', width=2),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+
+            # Punto (la piruleta)
+            fig.add_trace(go.Scatter(
+                x=reference_count['PH1_reference_$startups'],
+                y=reference_count['count'],
+                mode='markers+text',
+                marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
+                text=reference_count['text'],
+                textposition='top center',
+                textfont=dict(color='black'),
+                name='Total Clicks'
+            ))
+
+            fig.update_layout(
+                title='Application references',
+                xaxis_title='',
+                xaxis=dict(
+                    tickfont=dict(color='black')
+                ),
+                title_x=0.4,
+                yaxis_title='Amount of applications',
+                template='plotly_white',
+                height=600,
+                showlegend=False
+            )
+
+            st.plotly_chart(fig)
 #------------Vamos a sacar los clicks de Bitly---------------------
 # === Funciones para Bitly ===
 def get_group_guid():
@@ -182,7 +264,7 @@ def get_clicks_by_day(bitlink, unit='day', units=30):
     
 # === Obtener clics combinados de Bitly ===
 click_data = pd.DataFrame()
-with st.spinner("Cargando clics de Bitly..."):
+with st.spinner("Calculating Bitly clicks..."):
     # Obtener group GUID y luego los enlaces
     group_guid = get_group_guid()
     if group_guid:
@@ -204,128 +286,139 @@ with st.spinner("Cargando clics de Bitly..."):
     else:
         bitly_total = pd.DataFrame(columns=['date', 'clicks'])
 
-# Clics totales Bitly
-if not bitly_total.empty:
-    fig.add_trace(go.Scatter(
-        x=bitly_total['date'],
-        y=bitly_total['clicks'],
-        mode='lines+markers',
-        name='Bitly Total Clicks',
-        line=dict(color='purple', shape='spline', width=3),
-    ))
+cols = st.columns([4/5, 6/5])
 
-maximo = max(df_evolucion['Aplicaciones'].max(), df_24_evolucion['Aplicaciones'].max(), bitly_total['clicks'].max())
-hoy = pd.Timestamp.today().date()
+with st.spinner('Calculating clicks per day...'):
+    with cols[0]:
+        # Clics totales Bitly
+        if not bitly_total.empty:
+            fig = go.Figure()
 
-# Diseño
-fig.update_layout(
-    title="Applications received by day",
-    xaxis_title='Date',
-    yaxis_title='Applications',
-    template='plotly_white',
-    title_font=dict(size=20),
-    title_x=0.4,
-    xaxis_range = [df_evolucion['Created_date'].min(), hoy],
-    yaxis_range=[-20, maximo + 10]
-)
+            fig.add_trace(go.Scatter(
+                x=bitly_total['date'],
+                y=bitly_total['clicks'],
+                mode='lines+markers',
+                name='Bitly Total Clicks',
+                line=dict(color='purple', shape='spline', width=3),
+            ))
 
-# Mostrar gráfico en Streamlit
-st.plotly_chart(fig)
+        maximo = bitly_total['clicks'].max()
+        hoy = pd.Timestamp.today().date()
 
-#====================grafica con los bilinks por separado====================
-with st.spinner("Calculando clics totales por bitlink..."):
-    group_guid = get_group_guid()
-    if group_guid:
-        bitlinks = get_all_bitlinks(group_guid)
-    else:
-        bitlinks = []
-
-    all_clicks = []
-    for bl in bitlinks:
-        df_clicks = get_clicks_by_day(bl, units=60)
-        if not df_clicks.empty:
-            total = df_clicks['clicks'].sum()
-            all_clicks.append({'bitlink': bl, 'total_clicks': total})
-
-    df_click_totals = pd.DataFrame(all_clicks)
-
-    #aplicamos etiquetas personalizadas
-    etiquetas = {
-        "bit.ly/4lE0725": "Power MBA",
-        "bit.ly/4eG4mr1": "Partners Europa",
-        "bit.ly/4l9zeCL": "TEC de Monterrey",
-        "bit.ly/4kl3Pfg": "This Week in Fintech",
-        "bit.ly/4lanY9j": "BBVA Spark",
-        "bit.ly/3TRdKyp": "Collective",
-        "bit.ly/3TPMHn5": "ICEX",
-        "bit.ly/45Vv7Wh": "Podcast Andrés",
-        "bit.ly/44aFUdP": "Pygma",
-        "bit.ly/4km2EfL": "LinkedIn post Marcos",
-        "bit.ly/44tP6Ji": "F6S",
-        "bit.ly/4kfXv8Q": "GUST",
-        "bit.ly/3IpanMz": "Team Link",
-        "bit.ly/45PWD7u": "Experience Makers",
-        "bit.ly/40AA6b9": "Partners",
-        "bit.ly/4ev8F8A": "Alumni",
-        "bit.ly/44oTh94": "Lead Contact",
-        "bit.ly/40smjmT": "Squarespace Mail Communications",
-        "bit.ly/4lsbWaU": "TikTok Profile",
-        "bit.ly/44tUrAe": "Instagram Stories",
-        "bit.ly/4ev8nP2": "Instagram Profile",
-        "bit.ly/4eAlizk": "Decelera LinkedIn Job",
-        "bit.ly/3ZX4aNY": "Decelera LinkedInd Post",
-        "bit.ly/40wgbdm": "Decelera LinkedIn",
-        "bit.ly/4lkunhy": "Decelera Form Press",
-        "bit.ly/4k33Bt6": "Decelera_Mexico25_PH1",
-        "bit.ly/4kOZYIH": "Waitinglinst post"
-    }
-
-    df_click_totals['labels'] = df_click_totals['bitlink'].map(etiquetas)
-    total = df_click_totals['total_clicks'].sum()
-    df_click_totals['pct'] = (df_click_totals['total_clicks'] / total * 100).round(1)
-    df_click_totals['text'] = df_click_totals['total_clicks'].astype(str) + "(" + df_click_totals['pct'].astype(str) + ")"
-
-    if not df_click_totals.empty:
-        df_sorted = df_click_totals.sort_values('total_clicks', ascending=False)
-        fig = go.Figure()
-
-        # Línea (el palito)
-        fig.add_trace(go.Scatter(
-            x=df_sorted['labels'],
-            y=df_sorted['total_clicks'],
-            mode='lines',
-            line=dict(color='skyblue', width=2),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-
-        # Punto (la piruleta)
-        fig.add_trace(go.Scatter(
-            x=df_sorted['labels'],
-            y=df_sorted['total_clicks'],
-            mode='markers+text',
-            marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
-            text=df_sorted['text'],
-            textposition='top center',
-            textfont=dict(color='black'),
-            name='Total Clicks'
-        ))
-
+        # Diseño
         fig.update_layout(
-            title='Bitly Clicks per Link',
-            xaxis_title='',
-            xaxis=dict(
-                tickfont=dict(color='black')
-            ),
-            yaxis_title='Total clicks',
+            title="Bitly clicks per day",
+            xaxis_title='Date',
+            yaxis_title='Clicks',
+            title_x=0.4,
             template='plotly_white',
-            height=600
+            title_font=dict(size=20),
+            showlegend=False,
+            xaxis_range = [df_evolucion['Created_date'].min(), hoy],
+            yaxis_range=[-20, maximo + 10]
         )
 
+        # Mostrar gráfico en Streamlit
         st.plotly_chart(fig)
 
-    else:
-        st.warning("No se encontraron clics para ningún enlace.")
+#====================grafica con los bilinks por separado====================
+
+with cols[1]:
+    with st.spinner("Calculating clicks per bitlink..."):
+        group_guid = get_group_guid()
+        if group_guid:
+            bitlinks = get_all_bitlinks(group_guid)
+        else:
+            bitlinks = []
+
+        all_clicks = []
+        for bl in bitlinks:
+            df_clicks = get_clicks_by_day(bl, units=60)
+            if not df_clicks.empty:
+                total = df_clicks['clicks'].sum()
+                all_clicks.append({'bitlink': bl, 'total_clicks': total})
+
+        df_click_totals = pd.DataFrame(all_clicks)
+
+        #aplicamos etiquetas personalizadas
+        etiquetas = {
+            "bit.ly/4lE0725": "Power MBA",
+            "bit.ly/4eG4mr1": "Partners Europa",
+            "bit.ly/4l9zeCL": "TEC de Monterrey",
+            "bit.ly/4kl3Pfg": "This Week in Fintech",
+            "bit.ly/4lanY9j": "BBVA Spark",
+            "bit.ly/3TRdKyp": "Collective",
+            "bit.ly/3TPMHn5": "ICEX",
+            "bit.ly/45Vv7Wh": "Podcast Andrés",
+            "bit.ly/44aFUdP": "Pygma",
+            "bit.ly/4km2EfL": "LinkedIn post Marcos",
+            "bit.ly/44tP6Ji": "F6S",
+            "bit.ly/4kfXv8Q": "GUST",
+            "bit.ly/3IpanMz": "Team Link",
+            "bit.ly/45PWD7u": "Experience Makers",
+            "bit.ly/40AA6b9": "Partners",
+            "bit.ly/4ev8F8A": "Alumni",
+            "bit.ly/44oTh94": "Lead Contact",
+            "bit.ly/40smjmT": "Squarespace Mail Communications",
+            "bit.ly/4lsbWaU": "TikTok Profile",
+            "bit.ly/44tUrAe": "Instagram Stories",
+            "bit.ly/4ev8nP2": "Instagram Profile",
+            "bit.ly/4eAlizk": "Decelera LinkedIn Job",
+            "bit.ly/3ZX4aNY": "Decelera LinkedInd Post",
+            "bit.ly/40wgbdm": "Decelera LinkedIn",
+            "bit.ly/4lkunhy": "Decelera Form Press",
+            "bit.ly/4k33Bt6": "Decelera_Mexico25_PH1",
+            "bit.ly/4kOZYIH": "Waitinglinst post"
+        }
+
+        df_click_totals['labels'] = df_click_totals['bitlink'].map(etiquetas)
+        total = df_click_totals['total_clicks'].sum()
+        df_click_totals['pct'] = (df_click_totals['total_clicks'] / total * 100).round(1)
+        df_click_totals['text'] = df_click_totals['total_clicks'].astype(str) + "(" + df_click_totals['pct'].astype(str) + "%)"
+
+        if not df_click_totals.empty:
+            df_sorted = df_click_totals.sort_values('total_clicks', ascending=False)
+            fig = go.Figure()
+
+            # Línea (el palito)
+            fig.add_trace(go.Scatter(
+                x=df_sorted['labels'],
+                y=df_sorted['total_clicks'],
+                mode='lines',
+                line=dict(color='skyblue', width=2),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+
+            # Punto (la piruleta)
+            fig.add_trace(go.Scatter(
+                x=df_sorted['labels'],
+                y=df_sorted['total_clicks'],
+                mode='markers+text',
+                marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
+                text=df_sorted['text'],
+                textposition='top center',
+                textfont=dict(color='black'),
+                name='Total Clicks'
+            ))
+
+            fig.update_layout(
+                title='Bitly Clicks per Link',
+                xaxis_title='',
+                xaxis=dict(
+                    tickfont=dict(color='black')
+                ),
+                title_x=0.4,
+                yaxis_title='Total clicks',
+                template='plotly_white',
+                height=600,
+                showlegend=False
+            )
+
+            st.plotly_chart(fig)
+
+        else:
+            st.warning("No se encontraron clics para ningún enlace.")
 #============================Barras=========================
 # Filtrar solo datos de 2024 en df_24
 df['year'] = 2025
@@ -348,7 +441,7 @@ df_comparado = pd.concat([df, df_24], ignore_index=True)
 
 # === Crear lista de semanas disponibles ===
 semanas_disp_df = df_comparado[['week_start']].drop_duplicates().sort_values('week_start')
-semanas_disp_df['etiqueta'] = semanas_disp_df['week_start'].dt.strftime("Week of %Y-%m-%d")
+semanas_disp_df['etiqueta'] = semanas_disp_df['week_start'].dt.strftime(f"Week of %Y-%m-%d")
 
 # Crear diccionario para dropdown
 diccionario_semanas = dict(zip(semanas_disp_df['etiqueta'], semanas_disp_df['week_start']))
@@ -492,33 +585,6 @@ colores_personalizados = [
     "#FFB6C1",  # Rosa claro
     "#00CED1"   # Azul turquesa
 ]
-
-with cols[0]:
-    reference_data = df['PH1_reference_$startups'].replace(
-        {"Referral from within Decelera's community (who?, please specify)": "Referral"}
-    )
-    reference_count = reference_data.value_counts()
-
-    ref_dict =dict(zip(reference_count.index, [int(reference_count[k]) for k in range(len(reference_count))]))
-    df_ref = pd.DataFrame(list(ref_dict.items()), columns=['Reference', 'Applications'])
-
-    fig = px.pie(df_ref, names='Reference', values='Applications', title=' Total Applications References',
-                 color_discrete_sequence=colores_personalizados)
-
-    fig.update_traces(textinfo="percent")
-
-    fig.update_layout(
-        legend=dict(
-            x=0.8,  
-            y=0.9,
-            xanchor='left',
-            yanchor='middle',
-            font=dict(size=12),
-            bgcolor="rgba(0,0,0,0)"
-        ),
-        title_x = 0.4
-    )
-    st.plotly_chart(fig)
 
 with cols[1]:
     # Filtrar solo los aprobados
