@@ -91,24 +91,46 @@ cols[3].metric("Ratio", f"{ratio:.2f}%")
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 
 #======Aplicaciones por dia===========================
+# Definir el inicio de campaña para cada dataset
+inicio_2025 = pd.to_datetime("25-06-2025")
+inicio_2024 = pd.to_datetime("20-06-2024")
+time_delta = inicio_2025 - inicio_2024
+
 df['Created'] = pd.to_datetime(df['Created_str'], errors='coerce').dt.tz_localize(None)
 df_24['Created'] = pd.to_datetime(df_24['Created_str'], errors='coerce').dt.tz_localize(None)
 
+# Filtrar solo datos de 2024 en df_24
+df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
+
 df['Created_date'] = df['Created'].dt.date
+df_24['Created_date'] = df_24['Created'].dt.date + time_delta
 df_evolucion = df.groupby('Created_date').size().reset_index(name='Aplicaciones')
 df_evolucion = df_evolucion.sort_values('Created_date')
+df_24_evolucion = df_24.groupby('Created_date').size().reset_index(name='Aplicaciones')
+df_24_evolucion = df_24_evolucion.sort_values('Created_date')
 
 # Gráfico de líneas con área rellena
+maximo = max(df_evolucion['Aplicaciones'].max(), df_24_evolucion['Aplicaciones'].max())
+hoy = pd.Timestamp.today().date()
+
 fig = go.Figure()
 
 fig.add_trace(go.Scatter(
     x=df_evolucion['Created_date'],
     y=df_evolucion['Aplicaciones'],
     mode='lines+markers',
-    name='Applications per day',
+    name='Applications per day (Mexico 2025)',
     line=dict(color='skyblue', shape='spline', width=3),
     fill='tozeroy',
     fillcolor='rgba(135, 206, 235, 0.2)'
+))
+
+fig.add_trace(go.Scatter(
+    x=df_24_evolucion['Created_date'],
+    y=df_24_evolucion['Aplicaciones'],
+    mode='lines+markers',
+    name='Applications per day (Mexico 2024)',
+    line=dict(color='orange', shape='spline', width=3),
 ))
 
 # Diseño
@@ -118,72 +140,66 @@ fig.update_layout(
     yaxis_title='Applications',
     template='plotly_white',
     title_font=dict(size=20),
-    title_x=0.4
+    title_x=0.4,
+    xaxis_range = [df_evolucion['Created_date'].min(), hoy],
+    yaxis_range=[0, maximo]
 )
 
 # Mostrar gráfico en Streamlit
 st.plotly_chart(fig)
 
+
+#============================Barras=========================
 # Filtrar solo datos de 2024 en df_24
-df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
-
-# Calcular día de la semana y año
-df['weekday'] = df['Created'].dt.day_name()
 df['year'] = 2025
-
-df_24['weekday'] = df_24['Created'].dt.day_name()
+df_24 = df_24[df_24['Created'] >= pd.to_datetime("2024-01-01")]
 df_24['year'] = 2024
 
-# Definir el inicio de campaña para cada dataset
-inicio_2025 = pd.to_datetime("30-06-2025")
-inicio_2024 = pd.to_datetime("16-06-2024")
+# Aplicar desfase temporal a df_24 para alinear campañas
+df_24['Created_aligned'] = df_24['Created'] + time_delta
+df['Created_aligned'] = df['Created']  # Para mantener misma columna
 
-# Calcular semana relativa
-df['semana_relativa'] = ((df['Created'] - inicio_2025).dt.days // 7) + 1
-df_24['semana_relativa'] = ((df_24['Created'] - inicio_2024).dt.days // 7) + 1
+# Extraer semana y día de la semana alineados
+df['week_start'] = df['Created_aligned'] - pd.to_timedelta(df['Created_aligned'].dt.dayofweek, unit='D')
+df['weekday'] = df['Created_aligned'].dt.day_name()
 
-# Calcular el lunes de cada semana para etiqueta visual
-df['week_start'] = df['Created'] - pd.to_timedelta(df['Created'].dt.dayofweek, unit='D')
-df_24['week_start'] = df_24['Created'] - pd.to_timedelta(df_24['Created'].dt.dayofweek, unit='D')
+df_24['week_start'] = df_24['Created_aligned'] - pd.to_timedelta(df_24['Created_aligned'].dt.dayofweek, unit='D')
+df_24['weekday'] = df_24['Created_aligned'].dt.day_name()
 
-# Unir los DataFrames
-df_comparado = pd.concat([df, df_24])
+# Combinar ambos datasets
+df_comparado = pd.concat([df, df_24], ignore_index=True)
 
-# Crear lista de semanas relativas y su primer día, solo para 2025
-semanas_disp_df = df[df['semana_relativa'] > 0][['semana_relativa', 'week_start']].drop_duplicates().sort_values('semana_relativa')
-semanas_disp_df['etiqueta'] = "Week " + semanas_disp_df['semana_relativa'].astype(str) + " (" + semanas_disp_df['week_start'].dt.strftime("%Y-%m-%d") + ")"
+# === Crear lista de semanas disponibles ===
+semanas_disp_df = df_comparado[['week_start']].drop_duplicates().sort_values('week_start')
+semanas_disp_df['etiqueta'] = semanas_disp_df['week_start'].dt.strftime("Week of %Y-%m-%d")
 
-# Crear diccionario {etiqueta: semana_relativa}
-diccionario_semanas = dict(zip(semanas_disp_df['etiqueta'], semanas_disp_df['semana_relativa']))
+# Crear diccionario para dropdown
+diccionario_semanas = dict(zip(semanas_disp_df['etiqueta'], semanas_disp_df['week_start']))
 
+# Calcular semana actual alineada
 hoy = pd.Timestamp.today().normalize()
-semana_relativa_actual = ((hoy - inicio_2025).days // 7) + 1
-
-# Buscar la etiqueta correspondiente
+hoy_alineado = hoy - pd.to_timedelta(hoy.dayofweek, unit='D')
 etiqueta_actual = None
-for etiqueta, semana in diccionario_semanas.items():
-    if semana == semana_relativa_actual:
+for etiqueta, fecha in diccionario_semanas.items():
+    if fecha == hoy_alineado:
         etiqueta_actual = etiqueta
         break
 
-# Seleccionar por defecto
-if etiqueta_actual:
-    default_index = list(diccionario_semanas.keys()).index(etiqueta_actual)
-else:
-    default_index = len(diccionario_semanas) - 1  # Última semana disponible
+default_index = list(diccionario_semanas.keys()).index(etiqueta_actual) if etiqueta_actual else len(diccionario_semanas) - 1
 
-# Dropdown con etiquetas amigables
+# === Dropdown de semana ===
 semana_etiqueta_seleccionada = st.selectbox('Select campaign week', list(diccionario_semanas.keys()), index=default_index)
+fecha_inicio_seleccionada = diccionario_semanas[semana_etiqueta_seleccionada]
 
-# Obtener la semana relativa seleccionada
-semana_relativa_seleccionada = diccionario_semanas[semana_etiqueta_seleccionada]
+# === Filtrar y agrupar datos ===
+fecha_fin_seleccionada = fecha_inicio_seleccionada + pd.Timedelta(days=6)
+df_filtrado = df_comparado[(df_comparado['Created_aligned'] >= fecha_inicio_seleccionada) & 
+                           (df_comparado['Created_aligned'] <= fecha_fin_seleccionada)]
 
-# Filtrar los datos de esa misma semana relativa en ambos años
-df_filtrado = df_comparado[df_comparado['semana_relativa'] == semana_relativa_seleccionada]
 total_aplicaciones = df_filtrado[df_filtrado['year'] == 2025].shape[0]
 total_aplicaciones_24 = df_filtrado[df_filtrado['year'] == 2024].shape[0]
 
-# Agrupar por día de la semana y año
+# Agrupar por día de la semana
 conteo_dias = df_filtrado.groupby(['weekday', 'year']).size().reset_index(name='count')
 
 # Orden correcto de días
@@ -191,10 +207,10 @@ dias_orden = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 conteo_dias['weekday'] = pd.Categorical(conteo_dias['weekday'], categories=dias_orden, ordered=True)
 conteo_dias = conteo_dias.sort_values('weekday')
 
-# Asegurar que 'year' es string para colores categóricos
+# Asegurar que 'year' sea string
 conteo_dias['year'] = conteo_dias['year'].astype(str)
 
-# Gráfico de barras agrupadas
+# === Gráfico de barras agrupadas ===
 fig = px.bar(
     conteo_dias,
     x="weekday",
@@ -202,7 +218,7 @@ fig = px.bar(
     color='year',
     barmode='group',
     text='count',
-    title=f"Applications by Day - Campaign Week {semana_relativa_seleccionada} Comparison",
+    title=f"Applications by Day - Week of {fecha_inicio_seleccionada.strftime('%Y-%m-%d')} Comparison",
     template="plotly_white",
     color_discrete_sequence=["#FFA500", "#87CEEB"],
     height=600
@@ -220,10 +236,7 @@ fig.add_annotation(
 fig.update_traces(textposition='outside')
 fig.update_layout(yaxis=dict(dtick=1))
 
-st.plotly_chart(fig, key="grafica_barras_semana_relativa")
-
-
-
+st.plotly_chart(fig, key="grafica_barras_semana_alineada")
 
 #acumulado-------------------------------------------------------------------------
 
@@ -485,6 +498,7 @@ with cols[0]:
                 color='black'
             )
         ),
+        xaxis_tickangle=45,
         yaxis_title="Companies",
         title_x=0.4,
         showlegend=False
