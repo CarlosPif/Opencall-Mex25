@@ -110,8 +110,6 @@ df_24_evolucion = df_24.groupby('Created_date').size().reset_index(name='Aplicac
 df_24_evolucion = df_24_evolucion.sort_values('Created_date')
 
 # Gráfico de líneas con área rellena
-maximo = max(df_evolucion['Aplicaciones'].max(), df_24_evolucion['Aplicaciones'].max())
-hoy = pd.Timestamp.today().date()
 
 fig = go.Figure()
 
@@ -133,6 +131,94 @@ fig.add_trace(go.Scatter(
     line=dict(color='orange', shape='spline', width=3),
 ))
 
+#------------Vamos a sacar los clicks de Bitly---------------------
+# === Funciones para Bitly ===
+def get_group_guid():
+    url = "https://api-ssl.bitly.com/v4/groups"
+    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        data = response.json()
+        return data['groups'][0]['guid']  # Devuelve el primer grupo
+    else:
+        st.error(f"Error al obtener group_guid: {response.status_code} - {response.text}")
+        return None
+
+def get_all_bitlinks(group_guid):
+    bitlinks = []
+    url = f"https://api-ssl.bitly.com/v4/groups/{group_guid}/bitlinks"
+    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
+    params = {"size": 100, "page": 1}
+
+    while True:
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            bitlinks.extend([link['id'] for link in data.get('links', [])])
+            if 'pagination' in data and data['pagination'].get('next', None):
+                params['page'] += 1
+            else:
+                break
+        else:
+            st.error(f"Error al obtener bitlinks: {response.status_code} - {response.text}")
+            break
+
+    return bitlinks
+
+
+def get_clicks_by_day(bitlink, unit='day', units=30):
+    url = f"https://api-ssl.bitly.com/v4/bitlinks/{bitlink}/clicks"
+    params = {"unit": unit, "units": units, "size": 100}
+    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
+    response = requests.get(url, headers=headers, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame(data.get('link_clicks', []))
+        if not df.empty:
+            df['date'] = pd.to_datetime(df['date']).dt.date
+        return df
+    else:
+        return pd.DataFrame()
+    
+# === Obtener clics combinados de Bitly ===
+click_data = pd.DataFrame()
+with st.spinner("Cargando clics de Bitly..."):
+    # Obtener group GUID y luego los enlaces
+    group_guid = get_group_guid()
+    if group_guid:
+        bitlinks = get_all_bitlinks(group_guid)
+    else:
+        bitlinks = []
+
+    clicks_list = []
+
+    for bl in bitlinks:
+        df_clicks = get_clicks_by_day(bl, units=60)
+        if not df_clicks.empty:
+            df_clicks['bitlink'] = bl
+            clicks_list.append(df_clicks)
+
+    if clicks_list:
+        click_data = pd.concat(clicks_list)
+        bitly_total = click_data.groupby('date')['clicks'].sum().reset_index()
+    else:
+        bitly_total = pd.DataFrame(columns=['date', 'clicks'])
+
+# Clics totales Bitly
+if not bitly_total.empty:
+    fig.add_trace(go.Scatter(
+        x=bitly_total['date'],
+        y=bitly_total['clicks'],
+        mode='lines+markers',
+        name='Bitly Total Clicks',
+        line=dict(color='purple', shape='spline', width=3),
+    ))
+
+maximo = max(df_evolucion['Aplicaciones'].max(), df_24_evolucion['Aplicaciones'].max(), bitly_total['clicks'].max())
+hoy = pd.Timestamp.today().date()
+
 # Diseño
 fig.update_layout(
     title="Applications received by day",
@@ -142,13 +228,103 @@ fig.update_layout(
     title_font=dict(size=20),
     title_x=0.4,
     xaxis_range = [df_evolucion['Created_date'].min(), hoy],
-    yaxis_range=[0, maximo]
+    yaxis_range=[-20, maximo + 10]
 )
 
 # Mostrar gráfico en Streamlit
 st.plotly_chart(fig)
 
+#====================grafica con los bilinks por separado====================
+with st.spinner("Calculando clics totales por bitlink..."):
+    group_guid = get_group_guid()
+    if group_guid:
+        bitlinks = get_all_bitlinks(group_guid)
+    else:
+        bitlinks = []
 
+    all_clicks = []
+    for bl in bitlinks:
+        df_clicks = get_clicks_by_day(bl, units=60)
+        if not df_clicks.empty:
+            total = df_clicks['clicks'].sum()
+            all_clicks.append({'bitlink': bl, 'total_clicks': total})
+
+    df_click_totals = pd.DataFrame(all_clicks)
+
+    #aplicamos etiquetas personalizadas
+    etiquetas = {
+        "bit.ly/4lE0725": "Power MBA",
+        "bit.ly/4eG4mr1": "Partners Europa",
+        "bit.ly/4l9zeCL": "TEC de Monterrey",
+        "bit.ly/4kl3Pfg": "This Week in Fintech",
+        "bit.ly/4lanY9j": "BBVA Spark",
+        "bit.ly/3TRdKyp": "Collective",
+        "bit.ly/3TPMHn5": "ICEX",
+        "bit.ly/45Vv7Wh": "Podcast Andrés",
+        "bit.ly/44aFUdP": "Pygma",
+        "bit.ly/4km2EfL": "LinkedIn post Marcos",
+        "bit.ly/44tP6Ji": "F6S",
+        "bit.ly/4kfXv8Q": "GUST",
+        "bit.ly/3IpanMz": "Team Link",
+        "bit.ly/45PWD7u": "Experience Makers",
+        "bit.ly/40AA6b9": "Partners",
+        "bit.ly/4ev8F8A": "Alumni",
+        "bit.ly/44oTh94": "Lead Contact",
+        "bit.ly/40smjmT": "Squarespace Mail Communications",
+        "bit.ly/4lsbWaU": "TikTok Profile",
+        "bit.ly/44tUrAe": "Instagram Stories",
+        "bit.ly/4ev8nP2": "Instagram Profile",
+        "bit.ly/4eAlizk": "Decelera LinkedIn Job",
+        "bit.ly/3ZX4aNY": "Decelera LinkedInd Post",
+        "bit.ly/40wgbdm": "Decelera LinkedIn",
+        "bit.ly/4lkunhy": "Decelera Form Press",
+        "bit.ly/4k33Bt6": "Decelera_Mexico25_PH1",
+        "bit.ly/4kOZYIH": "Waitinglinst post"
+    }
+
+    df_click_totals['labels'] = df_click_totals['bitlink'].map(etiquetas)
+
+    if not df_click_totals.empty:
+        df_sorted = df_click_totals.sort_values('total_clicks', ascending=False)
+        fig = go.Figure()
+
+        # Línea (el palito)
+        fig.add_trace(go.Scatter(
+            x=df_sorted['labels'],
+            y=df_sorted['total_clicks'],
+            mode='lines',
+            line=dict(color='skyblue', width=2),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+
+        # Punto (la piruleta)
+        fig.add_trace(go.Scatter(
+            x=df_sorted['labels'],
+            y=df_sorted['total_clicks'],
+            mode='markers+text',
+            marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
+            text=df_sorted['total_clicks'],
+            textposition='top center',
+            textfont=dict(color='black'),
+            name='Total Clicks'
+        ))
+
+        fig.update_layout(
+            title='Bitly Clicks per Link',
+            xaxis_title='',
+            xaxis=dict(
+                tickfont=dict(color='black')
+            ),
+            yaxis_title='Total clicks',
+            template='plotly_white',
+            height=600
+        )
+
+        st.plotly_chart(fig)
+
+    else:
+        st.warning("No se encontraron clics para ningún enlace.")
 #============================Barras=========================
 # Filtrar solo datos de 2024 en df_24
 df['year'] = 2025
@@ -233,7 +409,7 @@ fig.add_annotation(
     bgcolor="white",
 )
 
-fig.update_traces(textposition='outside')
+fig.update_traces(textposition='outside', textfont=dict(color='black'))
 fig.update_layout(yaxis=dict(dtick=1))
 
 st.plotly_chart(fig, key="grafica_barras_semana_alineada")
