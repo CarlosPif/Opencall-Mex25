@@ -3,11 +3,9 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import numpy as np
-import datetime
 import plotly.graph_objects as go
 from collections import Counter
 import requests
-import pytz
 
 # Configuracion de AirTable
 
@@ -283,6 +281,9 @@ with st.spinner("Calculando clics totales por bitlink..."):
     }
 
     df_click_totals['labels'] = df_click_totals['bitlink'].map(etiquetas)
+    total = df_click_totals['total_clicks'].sum()
+    df_click_totals['pct'] = (df_click_totals['total_clicks'] / total * 100).round(1)
+    df_click_totals['text'] = df_click_totals['total_clicks'].astype(str) + "(" + df_click_totals['pct'].astype(str) + ")"
 
     if not df_click_totals.empty:
         df_sorted = df_click_totals.sort_values('total_clicks', ascending=False)
@@ -304,7 +305,7 @@ with st.spinner("Calculando clics totales por bitlink..."):
             y=df_sorted['total_clicks'],
             mode='markers+text',
             marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
-            text=df_sorted['total_clicks'],
+            text=df_sorted['text'],
             textposition='top center',
             textfont=dict(color='black'),
             name='Total Clicks'
