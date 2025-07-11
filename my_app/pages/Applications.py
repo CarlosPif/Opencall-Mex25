@@ -143,76 +143,51 @@ female_percentage = round(female_founders / founders * 100, 2)
 
 st.markdown(f"""
 <style>
-/* ---------- CONTENEDOR GENERAL ---------- */
-.metric-container {{
-  background:#ffffff;          /* fondo grande blanco */
-  padding:1rem;
-  border-radius:12px;
-  text-align:center;
-  color:#000000;               /* todo el texto en negro */
-  box-shadow:0 1px 6px rgba(0,0,0,0.08);
-  font-family:"Segoe UI", sans-serif;
-}}
-.metric-main-num   {{ font-size:36px; margin:0; }}
-.metric-main-label {{ margin-top:2px; font-size:14px; font-weight:600;
-                      border-bottom:2px solid #000; display:inline-block; padding-bottom:3px; }}
-
-/* ---------- FILAS ---------- */
-.row {{
-  display:flex;
-  justify-content:center;
-  gap:0.6rem;
-  margin-top:1rem;
-}}
-
-/* ---------- TARJETAS ---------- */
-.metric-box {{
-  background:#87CEEB;          /* azul celeste */
-  border-radius:8px;
-  padding:10px 0 12px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.05);
-  border-bottom:2px solid #5aa5c8;   /* tono un poco más oscuro */
-  flex:1 1 0;
-  color:#000;                 /* asegura texto negro dentro de la tarjeta */
-}}
-.metric-value {{ font-size:18px; font-weight:600; margin:0; }}
-.metric-label {{ margin-top:2px; font-size:10px; color:#000; letter-spacing:.3px; }}
-
-/* ---------- TAMAÑOS DE TARJETAS ---------- */
-.row.three-cols .metric-box {{ flex-basis:33%; }}
-.row.two-cols   .metric-box {{ flex-basis:48%; }}
+.dashboard-row{{display:flex;gap:1rem;justify-content:center;margin-bottom:1rem;font-family:"Segoe UI",sans-serif;}}
+.big-card{{flex:1 1 0;background:#ffffff;border-radius:12px;padding:1rem;box-shadow:0 1px 6px rgba(0,0,0,.08);color:#000;text-align:center;}}
+.metric-main-num{{font-size:36px;margin:0;}}
+.metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
+.sub-row{{display:flex;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
+.metric-box{{background:#87CEEB;border-radius:8px;padding:10px 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;color:#000;flex:1 1 0;}}
+.metric-value{{font-size:18px;font-weight:600;margin:0;}}
+.metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
 </style>
 
-<div class="metric-container">
+<div class="dashboard-row">
 
-  <div class="metric-main-num">{total + total_ip}</div>
-  <div class="metric-main-label">Total number of applications</div>
+<!-- ───── 1. REFERRALS (ahora a la izquierda) ───── -->
+<div class="big-card">
+<div class="metric-main-num">{total_ref}</div>
+<div class="metric-main-label">Total number of referrals</div>
+<div class="sub-row">
+  <div class="metric-box"><div class="metric-value">{pct_conv}%</div><div class="metric-label">Referral conversion rate</div></div>
+  <div class="metric-box"><div class="metric-value">{pct_obj}%</div><div class="metric-label">Referral objective ratio</div></div>
+</div>
+</div>
 
-  <div class="row three-cols">
-    <div class="metric-box"><div class="metric-value">{total_ip}</div>
-                             <div class="metric-label">In progress applications</div></div>
-    <div class="metric-box"><div class="metric-value">{ratio}%</div>
-                             <div class="metric-label">Applications ratio</div></div>
-  </div>
+<!-- ───── 2. APPLICATIONS (ahora en el centro) ───── -->
+<div class="big-card">
+<div class="metric-main-num">{total + total_ip}</div>
+<div class="metric-main-label">Total number of applications</div>
+<div class="sub-row">
+  <div class="metric-box"><div class="metric-value">{total_ip}</div><div class="metric-label">In progress applications</div></div>
+  <div class="metric-box"><div class="metric-value">{ratio}%</div><div class="metric-label">Applications ratio</div></div>
+</div>
+</div>
 
-  <div class="row three-cols">
-    <div class="metric-box"><div class="metric-value">{total_ref}</div>
-                             <div class="metric-label">Total number of referrals</div></div>
-    <div class="metric-box"><div class="metric-value">{pct_conv}%</div>
-                             <div class="metric-label">Referral conversion rate</div></div>
-    <div class="metric-box"><div class="metric-value">{pct_obj}%</div>
-                             <div class="metric-label">Referral objective ratio</div></div>
-  </div>
-
-  <div class="row two-cols">
-    <div class="metric-box"><div class="metric-value">{female_percentage}%</div>
-                             <div class="metric-label">Female founder percentage</div></div>
-    <div class="metric-box"><div class="metric-value">{fase2_pct}%</div>
-                             <div class="metric-label">Phase 2 success rate</div></div>
-  </div>
+<!-- ───── 3. MÉTRICAS FASE/GÉNERO (derecha) ───── -->
+<div class="big-card">
+<div class="sub-row">
+  <div class="metric-box"><div class="metric-value">{female_percentage}%</div><div class="metric-label">Female founder percentage</div></div>
+  <div class="metric-box"><div class="metric-value">{fase2_pct}%</div><div class="metric-label">Phase 2 success rate</div></div>
+</div>
+</div>
 
 </div>
 """, unsafe_allow_html=True)
+
+
+
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
