@@ -8,7 +8,6 @@ from collections import Counter
 import requests
 
 # Configuracion de AirTable
-
 api_key_at = st.secrets["airtable"]["api_key"]
 base_id = st.secrets["airtable"]["base_24_id"]
 table_id = st.secrets["airtable"]["table_24_id"]
@@ -17,6 +16,11 @@ table_id = st.secrets["airtable"]["table_24_id"]
 base_id_df = st.secrets["airtable"]["base_id"]
 table_id_df = st.secrets["airtable"]["table_id"]
 
+#tabla de leads
+base_id_ld = st.secrets["airtable"]["base_id_ld"]
+table_id_ld = st.secrets["airtable"]["table_id_ld"]
+
+#fillout
 api_key_fl = st.secrets['fillout']['api_key']
 form_id = st.secrets['fillout']['form_id']
 
@@ -24,6 +28,7 @@ api = Api(api_key_at)
 table = api.table(base_id, table_id)
 table_24 = api.table(base_id, table_id)
 table_df = api.table(base_id_df, table_id_df)
+table_ld = api.table(base_id_ld, table_id_ld)
 
 # Obtenemos los datos
 records = table.all(view='Applicants_MEX25', time_zone="Europe/Madrid")
@@ -34,6 +39,11 @@ df = pd.DataFrame(data)
 records_24 = table_24.all(view='Applicants DEC MEXICO 2024', time_zone="Europe/Madrid")
 data_24 = [record['fields'] for record in records_24]
 df_24 = pd.DataFrame(data_24)
+
+#y para leads
+records_ld = table_ld.all(view='Referral Tracking')
+data_ld = [record['fields'] for record in records_ld]
+df_ld = pd.DataFrame(data_ld)
 
 #y para el dealflow
 records_df = table_df.all(view='PH1 - PH2_All Applicant Mex25', time_zone="Europe/Madrid")
@@ -47,6 +57,7 @@ def fix_cell(val):
 
 df = df.applymap(fix_cell)
 df_24 = df_24.applymap(fix_cell)
+df_ld = df_ld.applymap(fix_cell)
 
 # Comenzamos con el dashboard
 st.set_page_config(
@@ -58,33 +69,150 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 
 # Un conteo general antes de nada=======================================================
 # Sacamos los formularios en progreso
-url = f"https://api.fillout.com/v1/api/forms/{form_id}/submissions"
-headers = {
-    "Authorization": f"Bearer {api_key_fl}"
-}
-params = {
-    "status": "in_progress"
-}
 
-response = requests.get(url, headers=headers, params=params)
+def get_in_progress_submissions_count(form_id, api_key):
+    total_responses = 0
+    after = None
+    size = 100  # Fillout permite hasta 100
 
-if response.status_code == 200:
-    data_ip = response.json()
-    total_ip = data_ip.get("totalResponses", 0)
+    while True:
+        url = f"https://api.fillout.com/v1/api/forms/{form_id}/submissions"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        params = {
+            "status": "in_progress",
+            "limit": size
+        }
+        if after:
+            params['after'] = after
 
-cols = st.columns([1, 1, 2, 2, 2, 1])
+        response = requests.get(url, headers=headers, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            responses = data.get("responses", [])
+            total_responses += len(responses)
+
+            after = data.get("pageInfo", {}).get("endCursor", None)
+            if not after or not data.get("pageInfo", {}).get("hasNextPage", False):
+                break
+        else:
+            st.error(f"Error Fillout API: {response.status_code} - {response.text}")
+            break
+
+    return total_responses
+
+total_ip = get_in_progress_submissions_count(form_id, api_key_fl)
+
+#totales
 total = df.shape[0]
 target = 1200
-ratio = total / target * 100
+ratio = round(total / target * 100, 2)
 
-cols[2].metric("Current number of applications", f"{total}")
-cols[3].metric("In progress applications", f"{total_ip}")
-cols[4].metric("Total number of applications", f"{total_ip + total}")
+#de los referral
+df_df_ref = df_df[df_df['PH1_reference_$startups'] == 'Referral']
+ref_app = df_df_ref['PH1_reference_$startups'].shape[0]
 
-cols = st.columns([1, 1, 2, 2, 1])
+ref_ld_app = df_ld[df_ld['Applied'].fillna(False) == True].shape[0]
 
-cols[2].metric("Target number of applications", f"{target}")
-cols[3].metric("Ratio", f"{ratio:.2f}%")
+ref_ld = df_ld['Company'].shape[0] - ref_ld_app
+
+total_ref = ref_app + ref_ld
+
+#porcentaje de conversion
+pct_conv = round(ref_app / total_ref *100, 2)
+
+#porcentaje objetivo
+pct_obj = round(ref_app / 250 * 100, 2)
+
+#aplicaciones qu epasan a fase 2
+phase2_clean = df_df[df_df['Phase1&2_result_mex25'] == 'Passed Phase 2'].shape[0]
+phase2_flag = df_df[df_df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2"].shape[0]
+fase2_pct = round((phase2_clean + phase2_flag) / df_df.shape[0] * 100, 2)
+
+#female founders
+founders = df.shape[0]
+for founder in df['Second founder name']:
+    if founder:
+        founders += 1
+for founder in df['Third founder name']:
+    if founder:
+        founders +=1
+
+female_founders = df['Female'].sum()
+female_percentage = round(female_founders / founders * 100, 2)
+
+st.markdown(f"""
+<style>
+/* ---------- CONTENEDOR GENERAL ---------- */
+.metric-container {{
+  background:#ffffff;          /* fondo grande blanco */
+  padding:1rem;
+  border-radius:12px;
+  text-align:center;
+  color:#000000;               /* todo el texto en negro */
+  box-shadow:0 1px 6px rgba(0,0,0,0.08);
+  font-family:"Segoe UI", sans-serif;
+}}
+.metric-main-num   {{ font-size:36px; margin:0; }}
+.metric-main-label {{ margin-top:2px; font-size:14px; font-weight:600;
+                      border-bottom:2px solid #000; display:inline-block; padding-bottom:3px; }}
+
+/* ---------- FILAS ---------- */
+.row {{
+  display:flex;
+  justify-content:center;
+  gap:0.6rem;
+  margin-top:1rem;
+}}
+
+/* ---------- TARJETAS ---------- */
+.metric-box {{
+  background:#87CEEB;          /* azul celeste */
+  border-radius:8px;
+  padding:10px 0 12px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.05);
+  border-bottom:2px solid #5aa5c8;   /* tono un poco más oscuro */
+  flex:1 1 0;
+  color:#000;                 /* asegura texto negro dentro de la tarjeta */
+}}
+.metric-value {{ font-size:18px; font-weight:600; margin:0; }}
+.metric-label {{ margin-top:2px; font-size:10px; color:#000; letter-spacing:.3px; }}
+
+/* ---------- TAMAÑOS DE TARJETAS ---------- */
+.row.three-cols .metric-box {{ flex-basis:33%; }}
+.row.two-cols   .metric-box {{ flex-basis:48%; }}
+</style>
+
+<div class="metric-container">
+
+  <div class="metric-main-num">{total + total_ip}</div>
+  <div class="metric-main-label">Total number of applications</div>
+
+  <div class="row three-cols">
+    <div class="metric-box"><div class="metric-value">{total_ip}</div>
+                             <div class="metric-label">In progress applications</div></div>
+    <div class="metric-box"><div class="metric-value">{ratio}%</div>
+                             <div class="metric-label">Applications ratio</div></div>
+  </div>
+
+  <div class="row three-cols">
+    <div class="metric-box"><div class="metric-value">{total_ref}</div>
+                             <div class="metric-label">Total number of referrals</div></div>
+    <div class="metric-box"><div class="metric-value">{pct_conv}%</div>
+                             <div class="metric-label">Referral conversion rate</div></div>
+    <div class="metric-box"><div class="metric-value">{pct_obj}%</div>
+                             <div class="metric-label">Referral objective ratio</div></div>
+  </div>
+
+  <div class="row two-cols">
+    <div class="metric-box"><div class="metric-value">{female_percentage}%</div>
+                             <div class="metric-label">Female founder percentage</div></div>
+    <div class="metric-box"><div class="metric-value">{fase2_pct}%</div>
+                             <div class="metric-label">Phase 2 success rate</div></div>
+  </div>
+
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
@@ -616,50 +744,7 @@ with cols[1]:
 
     st.plotly_chart(fig)
 
-
-#female founders
-
-founders = 1
-for founder in df['Second founder name']:
-    if founder:
-        founders += 1
-for founder in df['Third founder name']:
-    if founder:
-        founders +=1
-
-female_founders = df['Female'].sum()
-male_founders = founders - female_founders
-female_percentage = female_founders / founders * 100
-
 cols = st.columns(2)
-
-with cols[1]:
-    data = {
-        'Gender': ['Female founders', 'Male founders'],
-        'Counts': [female_founders, male_founders]
-    }
-
-    fig = px.pie(
-        data,
-        names='Gender',
-        values='Counts',
-        title='Male and Female Founders',
-        color_discrete_sequence=colores_personalizados
-    )
-
-    fig.update_layout(
-        legend=dict(
-            x=0.8,  
-            y=0.9,
-            xanchor='left',
-            yanchor='middle',
-            font=dict(size=12),
-            bgcolor="rgba(0,0,0,0)"
-        ),
-        title_x = 0.4
-    )
-
-    st.plotly_chart(fig)
 
 with cols[0]:
     ph_result = df_df['Phase1&2_result_mex25'].replace(
