@@ -222,10 +222,6 @@ st.markdown("Below a temporal analysis of the number of applications submitted a
 
 #======Aplicaciones por dia===========================
 # Definir el inicio de campaña para cada dataset
-
-cols = st.columns([4/5, 6/5])
-
-
 inicio_2025 = pd.to_datetime("25-06-2025")
 inicio_2024 = pd.to_datetime("20-06-2024")
 time_delta = inicio_2025 - inicio_2024
@@ -288,10 +284,9 @@ fig.update_layout(
     yaxis_range=[0, df_evolucion['Aplicaciones'].max() + 10]
 )
 
-# Mostrar gráfico en Streamlit
 st.plotly_chart(fig)
 
-#Referencias de las aplicaciones
+#Referencias de las aplicaciones=============================================
 
 reference_data = df['PH1_reference_$startups'].replace(
 {"Referral from within Decelera's community (who?, please specify)": "Referral"}
@@ -340,211 +335,95 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
-#------------Vamos a sacar los clicks de Bitly---------------------
-# === Funciones para Bitly ===
-def get_group_guid():
-    url = "https://api-ssl.bitly.com/v4/groups"
-    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
-    response = requests.get(url, headers=headers)
 
-    if response.status_code == 200:
-        data = response.json()
-        return data['groups'][0]['guid']  # Devuelve el primer grupo
-    else:
-        st.error(f"Error al obtener group_guid: {response.status_code} - {response.text}")
-        return None
+#==================Desglose de references y referrals=======================
+#Mexico 2024
+cols = st.columns(2)
 
-def get_all_bitlinks(group_guid):
-    bitlinks = []
-    url = f"https://api-ssl.bitly.com/v4/groups/{group_guid}/bitlinks"
-    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
-    params = {"size": 100, "page": 1}
+with cols[0]:
+    conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
 
-    while True:
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code == 200:
-            data = response.json()
-            bitlinks.extend([link['id'] for link in data.get('links', [])])
-            if 'pagination' in data and data['pagination'].get('next', None):
-                params['page'] += 1
-            else:
-                break
-        else:
-            st.error(f"Error al obtener bitlinks: {response.status_code} - {response.text}")
-            break
+    total_global = conteo_refs['count'].sum()
+    conteo_refs['pct'] = conteo_refs['count'] / total_global * 100
 
-    return bitlinks
+    conteo_refs['PH1_reference_$startups'] = conteo_refs.apply(
+        lambda row: 'Others' if row['pct'] < 2 else row['PH1_reference_$startups'],
+        axis=1
+    )
 
+    referral_pct = conteo_refs.loc[
+        conteo_refs['PH1_reference_$startups'] == 'Referral', 'pct'
+        ].iloc[0]
 
-def get_clicks_by_day(bitlink, unit='day', units=30):
-    url = f"https://api-ssl.bitly.com/v4/bitlinks/{bitlink}/clicks"
-    params = {"unit": unit, "units": units, "size": 100}
-    headers = {"Authorization": f"Bearer {st.secrets['bitly']['access_token']}"}
-    response = requests.get(url, headers=headers, params=params)
+    conteo_refs = (
+        conteo_refs
+        .groupby('PH1_reference_$startups', as_index=False)['count']
+        .sum()
+    )
 
-    if response.status_code == 200:
-        data = response.json()
-        df = pd.DataFrame(data.get('link_clicks', []))
-        if not df.empty:
-            df['date'] = pd.to_datetime(df['date']).dt.date
-        return df
-    else:
-        return pd.DataFrame()
-    
-# === Obtener clics combinados de Bitly ===
-click_data = pd.DataFrame()
-with st.spinner("Calculating Bitly clicks..."):
-    # Obtener group GUID y luego los enlaces
-    group_guid = get_group_guid()
-    if group_guid:
-        bitlinks = get_all_bitlinks(group_guid)
-    else:
-        bitlinks = []
-
-    clicks_list = []
-
-    for bl in bitlinks:
-        df_clicks = get_clicks_by_day(bl, units=60)
-        if not df_clicks.empty:
-            df_clicks['bitlink'] = bl
-            clicks_list.append(df_clicks)
-
-    if clicks_list:
-        click_data = pd.concat(clicks_list)
-        bitly_total = click_data.groupby('date')['clicks'].sum().reset_index()
-    else:
-        bitly_total = pd.DataFrame(columns=['date', 'clicks'])
-
-cols = st.columns([4/5, 6/5])
-
-
-# Clics totales Bitly
-if not bitly_total.empty:
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter(
-        x=bitly_total['date'],
-        y=bitly_total['clicks'],
-        mode='lines+markers',
-        name='Bitly Total Clicks',
-        line=dict(color='purple', shape='spline', width=3),
-    ))
-
-maximo = bitly_total['clicks'].max()
-hoy = pd.Timestamp.today().date()
-
-# Diseño
-fig.update_layout(
-    title="Bitly clicks per day",
-    xaxis_title='Date',
-    yaxis_title='Clicks',
-    title_x=0.4,
-    template='plotly_white',
-    title_font=dict(size=20),
-    showlegend=False,
-    xaxis_range = [df_evolucion['Created_date'].min(), hoy],
-    yaxis_range=[-20, maximo + 10]
-)
-
-# Mostrar gráfico en Streamlit
-st.plotly_chart(fig)
-
-#====================grafica con los bilinks por separado====================
-
-group_guid = get_group_guid()
-if group_guid:
-    bitlinks = get_all_bitlinks(group_guid)
-else:
-    bitlinks = []
-
-all_clicks = []
-for bl in bitlinks:
-    df_clicks = get_clicks_by_day(bl, units=60)
-    if not df_clicks.empty:
-        total = df_clicks['clicks'].sum()
-        all_clicks.append({'bitlink': bl, 'total_clicks': total})
-
-df_click_totals = pd.DataFrame(all_clicks)
-
-#aplicamos etiquetas personalizadas
-etiquetas = {
-    "bit.ly/4lE0725": "Power MBA",
-    "bit.ly/4eG4mr1": "Partners Europa",
-    "bit.ly/4l9zeCL": "TEC de Monterrey",
-    "bit.ly/4kl3Pfg": "This Week in Fintech",
-    "bit.ly/4lanY9j": "BBVA Spark",
-    "bit.ly/3TRdKyp": "Collective",
-    "bit.ly/3TPMHn5": "ICEX",
-    "bit.ly/45Vv7Wh": "Podcast Andrés",
-    "bit.ly/44aFUdP": "Pygma",
-    "bit.ly/4km2EfL": "LinkedIn post Marcos",
-    "bit.ly/44tP6Ji": "F6S",
-    "bit.ly/4kfXv8Q": "GUST",
-    "bit.ly/3IpanMz": "Team Link",
-    "bit.ly/45PWD7u": "Experience Makers",
-    "bit.ly/40AA6b9": "Partners",
-    "bit.ly/4ev8F8A": "Alumni",
-    "bit.ly/44oTh94": "Lead Contact",
-    "bit.ly/40smjmT": "Squarespace Mail Communications",
-    "bit.ly/4lsbWaU": "TikTok Profile",
-    "bit.ly/44tUrAe": "Instagram Stories",
-    "bit.ly/4ev8nP2": "Instagram Profile",
-    "bit.ly/4eAlizk": "Decelera LinkedIn Job",
-    "bit.ly/3ZX4aNY": "Decelera LinkedInd Post",
-    "bit.ly/40wgbdm": "Decelera LinkedIn",
-    "bit.ly/4lkunhy": "Decelera Form Press",
-    "bit.ly/4k33Bt6": "Decelera_Mexico25_PH1",
-    "bit.ly/4kOZYIH": "Waitinglinst post"
-}
-
-df_click_totals['labels'] = df_click_totals['bitlink'].map(etiquetas)
-total = df_click_totals['total_clicks'].sum()
-df_click_totals['pct'] = (df_click_totals['total_clicks'] / total * 100).round(1)
-df_click_totals['text'] = df_click_totals['total_clicks'].astype(str) + "(" + df_click_totals['pct'].astype(str) + "%)"
-
-if not df_click_totals.empty:
-    df_sorted = df_click_totals.sort_values('total_clicks', ascending=False)
-    fig = go.Figure()
-
-    # Línea (el palito)
-    fig.add_trace(go.Scatter(
-        x=df_sorted['labels'],
-        y=df_sorted['total_clicks'],
-        mode='lines',
-        line=dict(color='skyblue', width=2),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-
-    # Punto (la piruleta)
-    fig.add_trace(go.Scatter(
-        x=df_sorted['labels'],
-        y=df_sorted['total_clicks'],
-        mode='markers+text',
-        marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
-        text=df_sorted['text'],
-        textposition='top center',
-        textfont=dict(color='black'),
-        name='Total Clicks'
-    ))
-
+    fig = px.pie(conteo_refs, names="PH1_reference_$startups", values="count",
+                    title="Mexico 2024 References")
+        
     fig.update_layout(
-        title='Bitly Clicks per Link',
-        xaxis_title='',
-        xaxis=dict(
-            tickfont=dict(color='black')
+        legend=dict(
+        orientation='h',
+        y=-0.20,
+        x=0.5,
+        xanchor='center',
+        font=dict(size=11)
         ),
-        title_x=0.4,
-        yaxis_title='Total clicks',
-        template='plotly_white',
-        height=600,
-        showlegend=False
+        margin=dict(t=90, b=120),
+        title_x = 0.35
     )
 
     st.plotly_chart(fig)
 
-else:
-    st.warning("No se encontraron clics para ningún enlace.")
+with cols[1]:
+    st.markdown(f"""
+        <style>
+        .single-card{{                       /* contenedor blanco */
+        background:#ffffff;
+        border-radius:12px;
+        padding:1rem;
+        box-shadow:0 1px 6px rgba(0,0,0,.08);
+        text-align:center;
+        color:#000;
+        font-family:"Segoe UI",sans-serif;
+        max-width:400px;                   /* opcional */
+        margin:auto;                       /* centrado horizontal */
+        margin-top:5rem;
+        }}
+        .metric-main-num{{font-size:36px;margin:0;}}
+        .metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;
+                            border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
+        .sub-row{{display:flex;justify-content:center;margin-top:0.8rem;}}
+        .metric-box{{background:#87CEEB;border-radius:8px;padding:10px 0 12px;
+                    flex:1 1 0;box-shadow:0 1px 3px rgba(0,0,0,.05);
+                    border-bottom:2px solid #5aa5c8;color:#000;}}
+        .metric-value{{font-size:18px;font-weight:600;margin:0;}}
+        .metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
+        </style>
+
+        <div class="single-card">
+        <div class="metric-main-num">{df_24[df_24['PH1_reference_$startups'] == 'Referral'].shape[0]}</div>
+        <div class="metric-main-label">Total number of referrals Mexico 2024</div>
+
+        <div class="sub-row">
+            <div class="metric-box">
+            <div class="metric-value">{round(referral_pct, 2)}%</div>
+            <div class="metric-label">Referrals percentage Mexico 2024</div>
+            </div>
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+#------------Vamos a sacar los clicks de Bitly---------------------
+# === Funciones para Bitly ===
+
+
+#====================grafica con los bilinks por separado====================
+
+
 #============================Barras=========================
 # Filtrar solo datos de 2024 en df_24
 df['year'] = 2025
