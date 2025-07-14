@@ -217,6 +217,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
 
@@ -286,6 +287,10 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+#=======================Source referral leads================================
+
+
+
 #Referencias de las aplicaciones=============================================
 
 reference_data = df['PH1_reference_$startups'].replace(
@@ -337,7 +342,38 @@ fig.update_layout(
 st.plotly_chart(fig)
 
 #==================Desglose de references y referrals=======================
-#Mexico 2024
+# ── Conteo de cada valor en Source_leads ─────────────────────────
+source_count = (
+    df_df['Source_leads']             
+        .fillna('Sin fuente')            
+        .value_counts()
+        .reset_index(name='count')
+)
+
+source_count = source_count[~source_count['Source_leads'].isin(['Sin fuente', "Didn't specify"])]
+
+fig = px.pie(
+    source_count,
+    names='Source_leads',
+    values='count',
+    title='Referrals Source Mexico 2025',
+    hole=0.35              
+)
+
+fig.update_layout(
+    legend=dict(
+        orientation='v',  
+        y=0.5,           
+        x=1.05,          
+        xanchor='left',
+        font=dict(size=12)
+    ),
+    margin=dict(l=20, r=120, t=80, b=20)
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+
 cols = st.columns(2)
 
 with cols[0]:
@@ -379,43 +415,53 @@ with cols[0]:
     st.plotly_chart(fig)
 
 with cols[1]:
+    # DataFrame con columnas 'semana' (1-N) y 'count'
+    semana_referrals = (
+        df_24[df_24['PH1_reference_$startups'] == 'Referral']
+        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
+        .assign(semana=lambda d: ((d['fecha'] - inicio_2024).dt.days // 7) + 1)
+        .groupby('semana', as_index=False)['fecha']
+        .size()
+        .rename(columns={'size': 'count'})
+        .sort_values('semana')
+    )
+
+    # 1) DataFrame semana_referrals ya calculado …
+    total_referrals = semana_referrals['count'].sum()
+
+    # 2) Genera las cajitas sin espacios iniciales
+    weeks_html = "".join(
+        f'<div class="metric-box">'
+        f'  <div class="metric-value">{row["count"]}</div>'
+        f'  <div class="metric-label">Week&nbsp;{row["semana"]}</div>'
+        f'</div>'
+        for _, row in semana_referrals.iterrows()
+    )
+
+    # 3) Tarjeta HTML sin indentaciones
     st.markdown(f"""
-        <style>
-        .single-card{{                       /* contenedor blanco */
-        background:#ffffff;
-        border-radius:12px;
-        padding:1rem;
-        box-shadow:0 1px 6px rgba(0,0,0,.08);
-        text-align:center;
-        color:#000;
-        font-family:"Segoe UI",sans-serif;
-        max-width:400px;                   /* opcional */
-        margin:auto;                       /* centrado horizontal */
-        margin-top:5rem;
-        }}
-        .metric-main-num{{font-size:36px;margin:0;}}
-        .metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;
-                            border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
-        .sub-row{{display:flex;justify-content:center;margin-top:0.8rem;}}
-        .metric-box{{background:#87CEEB;border-radius:8px;padding:10px 0 12px;
-                    flex:1 1 0;box-shadow:0 1px 3px rgba(0,0,0,.05);
-                    border-bottom:2px solid #5aa5c8;color:#000;}}
-        .metric-value{{font-size:18px;font-weight:600;margin:0;}}
-        .metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
-        </style>
+    <style>
+    .single-card{{background:#ffffff;border-radius:12px;padding:1rem;box-shadow:0 1px 6px rgba(0,0,0,.08);
+                text-align:center;color:#000;font-family:"Segoe UI",sans-serif;max-width:600px;margin:auto;}}
+    .metric-main-num{{font-size:36px;margin:0;}}
+    .metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;border-bottom:2px solid #000;
+                    display:inline-block;padding-bottom:3px;}}
+    .sub-row{{display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
+    .metric-box{{background:#87CEEB;border-radius:8px;padding:10px 18px;flex:0 0 auto;
+                box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;color:#000;}}
+    .metric-value{{font-size:18px;font-weight:600;margin:0;}}
+    .metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
+    </style>
 
-        <div class="single-card">
-        <div class="metric-main-num">{df_24[df_24['PH1_reference_$startups'] == 'Referral'].shape[0]}</div>
-        <div class="metric-main-label">Total number of referrals Mexico 2024</div>
+    <div class="single-card">
+    <div class="metric-main-num">{total_referrals}</div>
+    <div class="metric-main-label">Total referrals (Mexico 2025)</div>
+    <div class="sub-row">
+    {weeks_html}
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        <div class="sub-row">
-            <div class="metric-box">
-            <div class="metric-value">{round(referral_pct, 2)}%</div>
-            <div class="metric-label">Referrals percentage Mexico 2024</div>
-            </div>
-        </div>
-        </div>
-        """, unsafe_allow_html=True)
 
 #------------Vamos a sacar los clicks de Bitly---------------------
 # === Funciones para Bitly ===
