@@ -455,7 +455,7 @@ with cols[1]:
 
     <div class="single-card">
     <div class="metric-main-num">{total_referrals}</div>
-    <div class="metric-main-label">Total referrals (Mexico 2025)</div>
+    <div class="metric-main-label">Total number of referrals Mexico 2024</div>
     <div class="sub-row">
     {weeks_html}
     </div>
@@ -626,51 +626,6 @@ st.plotly_chart(fig)
 
 
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
-#-----Vamos con un Pie Chart de las referencias-----
-cols = st.columns(2)
-colores_personalizados = [
-    "#87CEEB",  # Azul celeste
-    "#FFA500",  # Naranja
-    "#90EE90",  # Verde suave
-    "#FFD700",  # Amarillo dorado
-    "#FFB6C1",  # Rosa claro
-    "#00CED1"   # Azul turquesa
-]
-
-with cols[1]:
-    # Filtrar solo los aprobados
-    df_aprobados = df_df[(df_df['Phase1&2_result_mex25'] == "Passed Phase 2") | (df_df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2")]
-
-    # Contar las referencias entre los aprobados
-    reference_data = df_aprobados['PH1_reference_$startups'].replace(
-        {"Referral from within Decelera's community (who?, please specify)": "Referral"}
-    )
-    reference_count = reference_data.value_counts()
-
-    # Preparar DataFrame para el gráfico
-    df_ref = pd.DataFrame({
-        "Referencia": reference_count.index,
-        "Aplicaciones": reference_count.values
-    })
-
-    # Generar el Pie Chart
-    fig = px.pie(df_ref, names="Referencia", values="Aplicaciones",
-                title="Phase 2 Applications References",
-                color_discrete_sequence=colores_personalizados)
-    
-    fig.update_layout(
-        legend=dict(
-            x=0.8,  
-            y=0.9,
-            xanchor='left',
-            yanchor='middle',
-            font=dict(size=12),
-            bgcolor="rgba(0,0,0,0)"
-        ),
-        title_x = 0.4
-    )
-
-    st.plotly_chart(fig)
     
 # Vamos a hablar de los red flags
 
@@ -690,8 +645,7 @@ with cols[0]:
     # Convertimos a DataFrame para graficar
     df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Phase 1 Red Flag Reasons', text='Cantidad', color='Motivo',
-                color_discrete_sequence=colores_personalizados)
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Phase 1 Red Flag Reasons', text='Cantidad', color='Motivo')
 
     fig.update_layout(
         xaxis_title="",
@@ -725,8 +679,7 @@ with cols[1]:
     # Convertimos a DataFrame para graficar
     df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Pahse 2 Red Flag Reasons', text='Cantidad', color='Motivo',
-                color_discrete_sequence=colores_personalizados)
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Pahse 2 Red Flag Reasons', text='Cantidad', color='Motivo')
 
     fig.update_layout(
         xaxis_title="",
