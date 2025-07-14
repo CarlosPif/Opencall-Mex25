@@ -46,7 +46,7 @@ data_ld = [record['fields'] for record in records_ld]
 df_ld = pd.DataFrame(data_ld)
 
 #y para el dealflow
-records_df = table_df.all(view='PH1 - PH2_All Applicant Mex25', time_zone="Europe/Madrid")
+records_df = table_df.all(view='PH1-PH2_All Applicant Mex25', time_zone="Europe/Madrid")
 data_df = [record['fields'] for record in records_df]
 df_df = pd.DataFrame(data_df)
 
@@ -109,7 +109,7 @@ target = 1200
 ratio = round(total / target * 100, 2)
 
 #de los referral
-df_df_ref = df_df[df_df['PH1_reference_$startups'] == 'Referral']
+df_df_ref = df_df[df_df['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)"]
 ref_app = df_df_ref['PH1_reference_$startups'].shape[0]
 
 ref_ld_app = df_ld[df_ld['Applied'].fillna(False) == True].shape[0]
