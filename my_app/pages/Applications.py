@@ -337,35 +337,128 @@ st.plotly_chart(fig)
 
 #==================Desglose de references y referrals=======================
 # ── Conteo de cada valor en Source_leads ─────────────────────────
-source_count = (
-    df_df['Source_leads']             
-        .fillna('Sin fuente')            
-        .value_counts()
-        .reset_index(name='count')
-)
+cols = st.columns(2)
 
-source_count = source_count[~source_count['Source_leads'].isin(['Sin fuente', "Didn't specify"])]
+with cols[0]:
+    source_count = (
+        df_df['Source_leads']             
+            .fillna('Sin fuente')            
+            .value_counts()
+            .reset_index(name='count')
+    )
 
-fig = px.pie(
-    source_count,
-    names='Source_leads',
-    values='count',
-    title='Referrals Source Mexico 2025',
-    hole=0.35              
-)
+    source_count = source_count[~source_count['Source_leads'].isin(['Sin fuente', "Didn't specify"])]
 
-fig.update_layout(
-    legend=dict(
-        orientation='v',  
-        y=0.5,           
-        x=1.05,          
-        xanchor='left',
-        font=dict(size=12)
-    ),
-    margin=dict(l=20, r=120, t=80, b=20)
-)
+    fig = px.pie(
+        source_count,
+        names='Source_leads',
+        values='count',
+        title='Referrals Source Mexico 2025',
+        hole=0.35              
+    )
 
-st.plotly_chart(fig, use_container_width=True)
+    fig.update_layout(
+        legend=dict(
+        orientation='h',
+        y=-0.20,
+        x=0.5,
+        xanchor='center',
+        font=dict(size=11)
+        ),
+        margin=dict(t=90, b=120),
+        title_x = 0.35
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+with cols[1]:
+    df_ref = (
+        df_df[df_df['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)"]
+        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
+        .assign(semana=lambda d: ((d['fecha'] - pd.Timestamp("2025-06-25")).dt.days // 7) + 1)
+        .groupby('semana', as_index=False)
+        .size()
+        .rename(columns={'size': 'count'})
+    )
+
+    df_ref_ld = (
+        df_ld[df_ld['Applied'] == False]
+        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
+        .assign(semana=lambda d: ((d['fecha'] - pd.Timestamp("2025-06-25")).dt.days // 7) + 1)
+        .groupby('semana', as_index=False)
+        .size()
+        .rename(columns={'size': 'count'})
+    )
+
+    df_total = pd.merge(df_ref, df_ref_ld, on='semana', how='outer').fillna(0)
+    df_total['count'] = df_total['count_x'] + df_total['count_y']
+    df_total = df_total[['semana', 'count']].sort_values('semana')
+
+    objetivos_dict = {1: 25, 2: 50, 3: 50, 4: 50, 5: 35, 6: 20, 7: 7, 8: 6, 9: 5, 10: 2}
+    df_obj = pd.DataFrame({'semana': list(objetivos_dict.keys()), 'objetivo': list(objetivos_dict.values())})
+
+    df_total = pd.merge(df_obj, df_total, on='semana', how='left').fillna({'count': 0})
+    df_total['count'] = df_total['count'].astype(int)
+    total_ref = df_total['count'].sum()
+
+    fig = go.Figure()
+
+    # Barra de referrals reales
+    fig.add_trace(go.Bar(
+        x=df_total['semana'],
+        y=df_total['count'],
+        name="Referrals",
+        text=df_total['count'],
+        textposition='outside',
+        textfont=dict(color='black'),
+        marker=dict(
+            color="#87CEEB",
+            line=dict(color="#5aa5c8", width=1.5),
+        )
+    ))
+
+    # Barra de objetivos
+    fig.add_trace(go.Bar(
+        x=df_total['semana'],
+        y=df_total['objetivo'],
+        name="Objetivo",
+        text=df_total['objetivo'],
+        textposition='outside',
+        textfont=dict(color='black'),
+        marker=dict(
+            color='rgba(0,0,0,0)',
+            line=dict(
+                color='#AAAAAA',
+                width=2
+            )
+        ),
+        opacity=0.5
+    ))
+
+    fig.update_layout(
+        barmode='overlay',  # O usa 'group' si prefieres barras una al lado de otra
+        title=f"Referrals Mexico 2025 per week. Total: {total_ref}",
+        xaxis=dict(
+            range=[0.5,16],
+            title='Week'
+        ),
+        legend=dict(
+            x=0.99,            
+            y=0.99,           
+            xanchor="right",  
+            yanchor="top",
+            orientation="v",  
+            bgcolor="rgba(255,255,255,0.5)",
+            bordercolor="black",
+            borderwidth=1
+        ),
+        bargap=0.15,
+        yaxis_title="Number of Referrals",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+
+    st.plotly_chart(fig)
 
 
 cols = st.columns(2)
@@ -429,6 +522,7 @@ with cols[1]:
         y=semana_referrals['count'],
         text=semana_referrals['count'],
         textposition='outside',
+        textfont=dict(color='black'),
         marker=dict(
             color="#87CEEB",
             line=dict(color="#5aa5c8", width=1.5),
@@ -436,7 +530,7 @@ with cols[1]:
     ))
 
     fig.update_layout(
-        title=f"Total referrals Mexico 2024: {total_referrals}",
+        title=f"Referrals Mexico 2024 per week. Total: {total_referrals}",
         xaxis_title="Week",
         yaxis_title="Number of Referrals",
         bargap=0.15,
