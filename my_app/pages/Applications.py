@@ -181,9 +181,9 @@ st.markdown(f"""
     <div class="metric-main-label">Total number of referrals</div>
     <div class="sub-row">
       <div class="metric-box"><div class="metric-value">{pct_conv}%</div>
-                               <div class="metric-label">Referral conversion rate</div></div>
+                               <div class="metric-label">Percentage of referrals that applied</div></div>
       <div class="metric-box"><div class="metric-value">{pct_obj}%</div>
-                               <div class="metric-label">Referral objective ratio</div></div>
+                               <div class="metric-label">Percentage of our target number of referrals covered</div></div>
     </div>
   </div>
 
@@ -195,7 +195,7 @@ st.markdown(f"""
       <div class="metric-box"><div class="metric-value">{total_ip}</div>
                                <div class="metric-label">In progress applications</div></div>
       <div class="metric-box"><div class="metric-value">{ratio}%</div>
-                               <div class="metric-label">Applications ratio</div></div>
+                               <div class="metric-label">Percentage of our target number of applications covered</div></div>
     </div>
   </div>
 
@@ -210,13 +210,12 @@ st.markdown(f"""
       <div class="metric-box"><div class="metric-value">{female_percentage}%</div>
                                <div class="metric-label">Female founder percentage</div></div>
       <div class="metric-box"><div class="metric-value">{fase2_pct}%</div>
-                               <div class="metric-label">Phase 2 success rate</div></div>
+                               <div class="metric-label">Percentage of applications that passed phase 2</div></div>
     </div>
   </div>
 
 </div>
 """, unsafe_allow_html=True)
-
 
 st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
 st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
@@ -286,11 +285,6 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
-
-#=======================Source referral leads================================
-
-
-
 #Referencias de las aplicaciones=============================================
 
 reference_data = df['PH1_reference_$startups'].replace(
@@ -304,22 +298,22 @@ reference_count['text'] = reference_count['count'].astype(str) + "(" + reference
 
 fig = go.Figure()
 
-# Línea (el palito)
-fig.add_trace(go.Scatter(
-    y=reference_count['count'],
-    x=reference_count['PH1_reference_$startups'],
-    mode='lines',
-    line=dict(color='skyblue', width=2),
-    showlegend=False,
-    hoverinfo='skip'
-))
+for i, row in reference_count.iterrows():
+    fig.add_shape(
+        type="line",
+        x0=row['PH1_reference_$startups'], x1=row['PH1_reference_$startups'],
+        y0=0, y1=row['count'],
+        xref='x', yref='y',
+        line=dict(color='skyblue', width=2)
+    )
+
 
 # Punto (la piruleta)
 fig.add_trace(go.Scatter(
     x=reference_count['PH1_reference_$startups'],
     y=reference_count['count'],
     mode='markers+text',
-    marker=dict(color='skyblue', size=14, line=dict(color='white', width=1)),
+    marker=dict(color='skyblue', size=20, line=dict(color='white', width=1)),
     text=reference_count['text'],
     textposition='top center',
     textfont=dict(color='black'),
@@ -426,42 +420,31 @@ with cols[1]:
         .sort_values('semana')
     )
 
-    # 1) DataFrame semana_referrals ya calculado …
     total_referrals = semana_referrals['count'].sum()
 
-    # 2) Genera las cajitas sin espacios iniciales
-    weeks_html = "".join(
-        f'<div class="metric-box">'
-        f'  <div class="metric-value">{row["count"]}</div>'
-        f'  <div class="metric-label">Week&nbsp;{row["semana"]}</div>'
-        f'</div>'
-        for _, row in semana_referrals.iterrows()
+    fig = go.Figure()
+
+    fig.add_trace(go.Bar(
+        x=semana_referrals['semana'],
+        y=semana_referrals['count'],
+        text=semana_referrals['count'],
+        textposition='outside',
+        marker=dict(
+            color="#87CEEB",
+            line=dict(color="#5aa5c8", width=1.5),
+        ),
+    ))
+
+    fig.update_layout(
+        title=f"Total referrals Mexico 2024: {total_referrals}",
+        xaxis_title="Week",
+        yaxis_title="Number of Referrals",
+        bargap=0.15,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
     )
 
-    # 3) Tarjeta HTML sin indentaciones
-    st.markdown(f"""
-    <style>
-    .single-card{{background:#ffffff;border-radius:12px;padding:1rem;box-shadow:0 1px 6px rgba(0,0,0,.08);
-                text-align:center;color:#000;font-family:"Segoe UI",sans-serif;max-width:600px;margin:auto;}}
-    .metric-main-num{{font-size:36px;margin:0;}}
-    .metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;border-bottom:2px solid #000;
-                    display:inline-block;padding-bottom:3px;}}
-    .sub-row{{display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
-    .metric-box{{background:#87CEEB;border-radius:8px;padding:10px 18px;flex:0 0 auto;
-                box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;color:#000;}}
-    .metric-value{{font-size:18px;font-weight:600;margin:0;}}
-    .metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
-    </style>
-
-    <div class="single-card">
-    <div class="metric-main-num">{total_referrals}</div>
-    <div class="metric-main-label">Total number of referrals Mexico 2024</div>
-    <div class="sub-row">
-    {weeks_html}
-    </div>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.plotly_chart(fig, use_container_width=True)
 
 #------------Vamos a sacar los clicks de Bitly---------------------
 # === Funciones para Bitly ===
