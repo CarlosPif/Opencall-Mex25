@@ -55,9 +55,9 @@ def fix_cell(val):
         return float("nan")
     return val
 
-df = df.applymap(fix_cell)
-df_24 = df_24.applymap(fix_cell)
-df_ld = df_ld.applymap(fix_cell)
+df = df.map(fix_cell)
+df_24 = df_24.map(fix_cell)
+df_ld = df_ld.map(fix_cell)
 
 # Comenzamos con el dashboard
 st.set_page_config(
@@ -414,7 +414,8 @@ with cols[1]:
         marker=dict(
             color="#87CEEB",
             line=dict(color="#5aa5c8", width=1.5),
-        )
+        ),
+        cliponaxis=False
     ))
 
     # Barra de objetivos
@@ -432,11 +433,12 @@ with cols[1]:
                 width=2
             )
         ),
-        opacity=0.5
+        opacity=0.5,
+        cliponaxis=False
     ))
 
     fig.update_layout(
-        barmode='overlay',  # O usa 'group' si prefieres barras una al lado de otra
+        barmode='overlay',
         title=f"Referrals Mexico 2025 per week. Total: {total_ref}",
         xaxis=dict(
             range=[0.5,16],
@@ -711,7 +713,7 @@ cols = st.columns(2)
 with cols[0]:
     todos_motivos = []
 
-    for texto in df_df["Phase1_result_reason_mex25"]:
+    for texto in df_df["PH1_red_flags_mex25"]:
         if isinstance(texto, str):
             motivos = [m.strip() for m in texto.split(". ") if m.strip()]
             todos_motivos.extend(motivos)
@@ -745,7 +747,7 @@ with cols[0]:
 with cols[1]:
     todos_motivos = []
 
-    for texto in df_df["Phase2_result_reason_mex25"]:
+    for texto in df_df["PH2_red_flags_mex25"]:
         if isinstance(texto, str):
             motivos = [m.strip() for m in texto.split(". ") if m.strip()]
             todos_motivos.extend(motivos)
