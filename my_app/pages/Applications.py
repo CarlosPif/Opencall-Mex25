@@ -169,7 +169,7 @@ st.markdown(f"""
   color:#000;flex:1 1 0;
 }}
 .metric-value{{font-size:18px;font-weight:600;margin:0;}}
-.metric-label{{margin-top:2px;font-size:10px;letter-spacing:.3px;}}
+.metric-label{{margin-top:2px;font-size:12px;letter-spacing:.3px;}}
 </style>
 
 <!-- ───────── PRIMER PISO (2 cajas) ───────── -->
@@ -529,6 +529,7 @@ with cols[1]:
             color="#87CEEB",
             line=dict(color="#5aa5c8", width=1.5),
         ),
+        cliponaxis=False
     ))
 
     fig.update_layout(
