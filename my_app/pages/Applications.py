@@ -169,7 +169,7 @@ st.markdown(f"""
   color:#000;flex:1 1 0;
 }}
 .metric-value{{font-size:18px;font-weight:600;margin:0;}}
-.metric-label{{margin-top:2px;font-size:12px;letter-spacing:.3px;}}
+.metric-label{{margin-top:2px;font-size:14px;letter-spacing:.3px;}}
 </style>
 
 <!-- ───────── PRIMER PISO (2 cajas) ───────── -->
