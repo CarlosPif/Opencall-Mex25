@@ -46,7 +46,7 @@ data_ld = [record['fields'] for record in records_ld]
 df_ld = pd.DataFrame(data_ld)
 
 #y para el dealflow
-records_df = table_df.all(view='PH1-PH2_All Applicant ', time_zone="Europe/Madrid")
+records_df = table_df.all(view='PH1-PH2_All Applicants', time_zone="Europe/Madrid")
 data_df = [record['fields'] for record in records_df]
 df_df = pd.DataFrame(data_df)
 
