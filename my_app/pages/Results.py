@@ -43,10 +43,16 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 
 #================================Tablita con resultados generales=========================================
 #Todos los que han sido evaluados POR EL team ya (los de Pending )
-pending_judge = df_all[df_all['Status'] == 'PH4_Pending_Judge'].shape[0]
+pending_judge = df_all[df_all['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
 
 #contamos cuantos han pasado a team evaluation
-ph2 = df_all[ (df_all['Status'] == 'PH4_Pending_Judge') | (df_all['Status'] == 'PH3_Rejection') | (df_all['Status'] == 'PH3_Internal_Evaluation') ].shape[0]
+ph2 = df_all[
+    (df_all['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df_all['Status'] == 'PH4_Judge_Evaluation') | 
+    (df_all['Status'] == 'PH3_Rejected') | 
+    (df_all['Status'] == 'PH3_To_Be_Rejected') | 
+    (df_all['Status'] == 'PH3_Internal_Evaluation')
+    ].shape[0]
 
 #porcentaje de exito en la team evaluation
 succ_pct = round(pending_judge / ph2 * 100, 2)
@@ -100,9 +106,127 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+#=================Vamos a hacer un funnel================
+total = df_all.shape[0] 
+
+funnel_count = (
+    df_all.replace(
+        {
+            'PH1_To_Be_Rejected': 'Phase 1',
+            'PH1_Rejected': 'Phase 1',
+            'PH1_Review': 'Phase 1',
+            'PH1_Pending_Send_Magic_link': 'Phase 1',
+            'PH1_Magic_Link_Sent': 'Phase 1',
+            'PH1_To_Be_Rejected_Review': 'Phase 1',
+            'PH1_Rejected_Review': 'Phase 1',
+            'PH3_Internal_Evaluation': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH3_To_Be_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH3_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH4_Pending_Judge_Assignment': 'Phase 4 (Judge Evaluation)',
+            'PH4_Judge_Evaluation': 'Phase 4 (Judge Evaluation)'
+        }
+    )
+)
+
+funnel_count = (
+    funnel_count.groupby('Status')['Status']
+    .value_counts()
+    .reset_index(name='count')
+)
+
+funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
+funnel_count['pct'] = round(funnel_count['count'] / total * 100, 2)
+funnel_count['text'] = funnel_count['count'].astype(str) + " (" + funnel_count['pct'].astype(str) + "%)"
+
+
+fig = go.Figure()
+
+fig.add_traces(go.Funnel(
+    x=funnel_count['count'],
+    y=funnel_count['Status'],
+    text=funnel_count['text'],
+    textinfo="text",
+    marker=dict(
+        color='#87CEEB',
+        line=dict(
+            color='#5aa5c8',
+            width=1.5
+        )
+    ),
+    textfont=dict(color='black')
+))
+
+fig.update_layout(
+    title='Selection process funnel chart',
+    yaxis=dict(
+        tickfont=dict(color='black')
+    )
+)
+
+st.plotly_chart(fig)
+
+#=====================Barras con cuantas aplicaciones hay en cada fase==============================
+df_phase = (
+    df_all.replace(
+        {
+            'PH1_To_Be_Rejected': 'Rejected in phase 1',
+            'PH1_Review': 'Review for the phase 1',
+            'PH1_Rejected': 'Rejected in phase 1',
+            'PH1_Pending_Send_Magic_Link': 'Pending to send magic link',
+            'PH1_Magic_Link_Sent': 'Magic link to phase 2 sent',
+            'PH1_To_Be_Rejected_Review': 'Rejected in phase 1',
+            'PH1_Rejected_Review': 'Rejected in phase 1',
+            'PH3_Internal_Evaluation': 'Internal Evaluation (Phase 3)',
+            'PH3_To_Be_Rejected': 'Rejected in phase 3',
+            'PH3_Rejected': 'Rejected in phase 3',
+            'PH4_Pending_Judge_Assignment': 'Pending judge assignment',
+            'PH4_Judge_Evaluation': 'Judge Evaluation (Phase 4)'
+        }
+    )
+)
+
+df_phase = (
+    df_phase.groupby('Status')['Status'].
+    value_counts().
+    reset_index(name='count')
+)
+
+df_phase['pct'] = round(df_phase['count'] / total * 100, 2)
+df_phase['text'] = df_phase['count'].astype(str) + " (" + df_phase['pct'].astype(str) + "%)"
+
+orden = [
+    'Rejected in phase 1',
+    'Review for the phase 1',
+    'Internal Evaluation (Phase 3)',
+    'Rejected in phase 3',
+    'Pending judge assignment',
+]
+df_phase = df_phase.set_index('Status').loc[orden].reset_index()
+
+fig = go.Figure()
+
+fig.add_traces(go.Bar(
+    x=df_phase['Status'],
+    y=df_phase['count'],
+    text=df_phase['text'],
+    textposition='outside',
+    textfont=dict(color='black'),
+    marker=dict(
+        color="#87CEEB",
+        line=dict(color="#5aa5c8", width=1.5),
+    ),
+    cliponaxis=False
+    ))
+
+fig.update_layout(
+    title=f"Current number of companies in each phase. Total: {total}",
+
+)
+
+st.plotly_chart(fig)
+#=====================distribucion de notas de la internal evaluation==============================
 st.markdown("**<h2>Internal evaluation (Phase 3)</h2>**", unsafe_allow_html=True)
 st.markdown("Below a results analysis of the Internal Evaluation phase")
-#=====================distribucion de notas de la internal evaluation==============================
 
 #y vamos con todos
 evaluation = list(df_all[df_all['PH3_Final_Score'] != 0]['PH3_Final_Score'])
@@ -121,7 +245,9 @@ fig.add_traces(go.Scatter(
     line=dict(
         color='skyblue',
         width=2
-    )
+    ),
+    fill='tozeroy',
+    fillcolor='rgba(135, 206, 235, 0.2)'
 ))
 
 fig.update_layout(
@@ -200,36 +326,3 @@ html_table += """
 """
 
 st.markdown(html_table, unsafe_allow_html=True)
-
-
-
-#=================Vamos a hacer un funnel================
-
-funnel_count = (
-    df.groupby('Status')
-    .size()
-    .reset_index(name='count')
-    .sort_values('count')
-)
-
-funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
-
-fig = go.Figure()
-
-fig.add_traces(go.Funnel(
-    x=funnel_count['count'],
-    y=funnel_count['Status'],
-    marker=dict(
-        color=['#87CEEB', '#87CEEB'],
-        line=dict(
-            color='#5aa5c8',
-            width=1.5
-        )
-    )
-))
-
-fig.update_layout(
-    title='Selection process funnel chart',
-)
-
-st.plotly_chart(fig)
