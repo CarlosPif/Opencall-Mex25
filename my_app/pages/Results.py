@@ -5,6 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
+import plotly.express as px
 
 # Configuracion de AirTable
 api_key = st.secrets["airtable"]["api_key"]
@@ -264,6 +265,13 @@ fig.update_layout(
     )
 )
 
+st.plotly_chart(fig)
+
+#PRUEBA DE UN BOXPLOT
+df_box = df_all[df_all['PH3_Final_Score'] != 0]
+
+fig = px.box(df_box, y='PH3_Final_Score', points='all')
+fig.update_traces(marker_color='skyblue', line_color='black')
 st.plotly_chart(fig)
 
 #vamos a poner una tabla interactiva con los 10 mejores
