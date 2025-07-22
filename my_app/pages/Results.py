@@ -15,7 +15,7 @@ api = Api(api_key)
 table = api.table(base_id, table_id)
 
 #sacamos los datos de All Applicants
-records = table.all(view='PH1-PH2_All Applicant ')
+records = table.all(view='PH1-PH2_All Applicants')
 data = [record['fields'] for record in records]
 df = pd.DataFrame(data)
 
