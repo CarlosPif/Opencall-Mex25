@@ -125,9 +125,13 @@ pct_conv = round(ref_app / total_ref *100, 2)
 pct_obj = round(ref_app / 250 * 100, 2)
 
 #aplicaciones qu epasan a fase 2
-phase2_clean = df_df[df_df['Phase1&2_result_mex25'] == 'Passed Phase 2'].shape[0]
-phase2_flag = df_df[df_df['Phase1&2_result_mex25'] == "Red Flagged at Phase 2"].shape[0]
-fase2_pct = round((phase2_clean + phase2_flag) / df_df.shape[0] * 100, 2)
+ph2 = df_df[
+    (df_df['Status'] != 'PH1_To_Be_Rejected') &
+    (df_df['Status'] != 'PH1_Rejected') &
+    (df_df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
+    (df_df['Status'] != 'PH1_Review')
+    ].shape[0]
+fase2_pct = round(ph2 / df_df.shape[0] * 100, 2)
 
 #female founders
 founders = df.shape[0]

@@ -15,15 +15,10 @@ table_id = st.secrets["airtable"]["table_id"]
 api = Api(api_key)
 table = api.table(base_id, table_id)
 
-#sacamos los datos de All Applicants
-records = table.all(view='PH1-PH2_All Applicants')
+#sacamos los datos para la vista de 1a evaluacion
+records = table.all(view='All applicants  by Phase')
 data = [record['fields'] for record in records]
 df = pd.DataFrame(data)
-
-#sacamos los datos para la vista de 1a evaluacion
-records_1st = table.all(view='All applicants  by Phase')
-data_1st = [record['fields'] for record in records_1st]
-df_all = pd.DataFrame(data_1st)
 
 #limpiamos un poco los datos
 def fix_cell(val):
@@ -31,8 +26,7 @@ def fix_cell(val):
         return float("nan")
     return val
 
-df_all = df_all.map(fix_cell)
-df_all = df_all.map(fix_cell)
+df = df.map(fix_cell)
 
 #Comenzamos con el dashboard
 st.set_page_config(
@@ -44,15 +38,16 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 
 #================================Tablita con resultados generales=========================================
 #Todos los que han sido evaluados POR EL team ya (los de Pending )
-pending_judge = df_all[df_all['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
+pending_judge = df[df['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
 
 #contamos cuantos han pasado a team evaluation
-ph2 = df_all[
-    (df_all['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df_all['Status'] == 'PH4_Judge_Evaluation') | 
-    (df_all['Status'] == 'PH3_Rejected') | 
-    (df_all['Status'] == 'PH3_To_Be_Rejected') | 
-    (df_all['Status'] == 'PH3_Internal_Evaluation')
+ph2 = df[
+    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df['Status'] == 'PH4_Judge_Evaluation') | 
+    (df['Status'] == 'PH3_Rejected') | 
+    (df['Status'] == 'PH3_To_Be_Rejected') | 
+    (df['Status'] == 'PH3_Internal_Evaluation') |
+    (df['Status'] == 'PH3_Waiting_List')
     ].shape[0]
 
 #porcentaje de exito en la team evaluation
@@ -108,10 +103,10 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 #=================Vamos a hacer un funnel================
-total = df_all.shape[0] 
+total = df.shape[0] 
 
 funnel_count = (
-    df_all.replace(
+    df.replace(
         {
             'PH1_To_Be_Rejected': 'Phase 1',
             'PH1_Rejected': 'Phase 1',
@@ -168,7 +163,7 @@ st.plotly_chart(fig)
 
 #=====================Barras con cuantas aplicaciones hay en cada fase==============================
 df_phase = (
-    df_all.replace(
+    df.replace(
         {
             'PH1_To_Be_Rejected': 'Rejected in phase 1',
             'PH1_Review': 'Review for the phase 1',
@@ -230,7 +225,7 @@ st.markdown("**<h2>Internal evaluation (Phase 3)</h2>**", unsafe_allow_html=True
 st.markdown("Below a results analysis of the Internal Evaluation phase")
 
 #y vamos con todos
-evaluation = list(df_all[df_all['PH3_Final_Score'] != 0]['PH3_Final_Score'])
+evaluation = list(df[df['PH3_Final_Score'] != 0]['PH3_Final_Score'])
 
 kde = gaussian_kde(evaluation)
 x_t = np.linspace(min(evaluation), max(evaluation), 200)
@@ -268,7 +263,7 @@ fig.update_layout(
 st.plotly_chart(fig)
 
 #PRUEBA DE UN BOXPLOT
-df_box = df_all[df_all['PH3_Final_Score'] != 0]
+df_box = df[df['PH3_Final_Score'] != 0]
 
 fig = px.box(df_box, y='PH3_Final_Score', points='all')
 fig.update_traces(marker_color='skyblue', line_color='black')
@@ -277,15 +272,15 @@ st.plotly_chart(fig)
 #vamos a poner una tabla interactiva con los 10 mejores
 st.markdown("Top 10 Startups Internal Evaluation")
 
-df_all['Deck (doc)'] = df_all['deck_$startup'].apply(
+df['Deck (doc)'] = df['deck_$startup'].apply(
     lambda x: x[0]['url'] if isinstance(x, list) and len(x) > 0 and isinstance(x[0], dict) and 'url' in x[0] else None
 )
 
-df_all['deck_icon'] = df_all['deck_$startup'].apply(
+df['deck_icon'] = df['deck_$startup'].apply(
     lambda x: x[0].get('thumbnails', {}).get('small', {}).get('url') if isinstance(x, list) and x else None
 )
 
-top_10 = df_all.sort_values(by='PH3_Final_Score', ascending=False).head(10)
+top_10 = df.sort_values(by='PH3_Final_Score', ascending=False).head(10)
 top_10['PH3_Final_Score'] = top_10['PH3_Final_Score'].apply(lambda x: round(x, 2))
 
 top_10 = top_10.rename(columns={
@@ -334,3 +329,124 @@ html_table += """
 """
 
 st.markdown(html_table, unsafe_allow_html=True)
+
+#==========================NUevo diseño que meto aqui tal cual==============================
+#primero la columna con los cuadrados
+#vamos a dividir todo solo entre fases
+ph1 = df['Status'].shape[0]
+ph2 = df[
+    (df['Status'] != 'PH1_To_Be_Rejected') &
+    (df['Status'] != 'PH1_Rejected') &
+    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
+    (df['Status'] != 'PH1_Review')
+    ].shape[0]
+ph4 = df[
+    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df['Status'] == 'PH4_Judge_Evaluation')
+].shape[0]
+
+st.markdown(f"""
+<style>
+.card {{
+  max-width: 600px;
+  margin: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,.08);
+  text-align: center;
+  font-family: "Segoe UI", sans-serif;
+  color: #000;
+}}
+
+.metric-column {{
+  display: gflex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-top: 1rem
+}}
+
+.metric-box{{
+  background:#87CEEB;border-radius:8px;padding:10px 0 12px;
+  box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;
+  color:#000;flex:1 1 0;
+}}
+
+.card-title {{
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #000;
+  display: inline-block;
+  padding-bottom: 4px;
+}}
+
+.card-metric {{
+  font-size: 36px;
+  font-weight: bold;
+  margin: 0.4rem 0;
+}}
+
+.card-label {{
+  font-size: 14px;
+  letter-spacing: 0.3px;
+  color: #555;
+}}
+</style>
+
+<div class="card">
+<div class="card-title">Metrics Overview</div>
+<div class="grid-metrics">
+
+<div class="metric-box">
+<div class="card-metric">{ph1}</div>
+<div class="card-label">Number of companies that got to Phase 1</div>
+</div>
+
+<div class="metric-box">
+<div class="card-metric">{ph2}</div>
+<div class="card-label">Number of companies that got to Phase 2</div>
+</div>
+
+<div class="metric-box">
+<div class="card-metric">{ph2}</div>
+<div class="card-label">Number of companies that got to Phase 3</div>
+</div>
+
+<div class="metric-box">
+<div class="card-metric">{ph4}</div>
+<div class="card-label">Number of companies that got to Phase 4</div>
+</div>
+
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+#Ahora vamos a sacartodos los numeros de la tabla que vamos a hacer con lo de los percentiles. Excepto para phase 1
+
+#separamos los de phase 1
+ph1_in_progress = df[
+    (df['Status'] == 'PH1_Pending_Send_Magic_link') |
+    (df['Status'] == 'PH1_Magic_Link_Sent')              #Cambiar esto a los in progress de fillout
+].shape[0]
+
+ph1_rejection = df[
+    (df['Status'] == 'PH1_Rejected') |
+    (df['Status'] == 'PH1_To_Be_Rejected') |
+    (df['Status'] == 'PH1_To_Be_Rejected_Reviewed')
+].shape[0]
+
+ph1_waiting_list = df[
+    df['Status'] == 'PH1_Review'
+]
+
+#separamos los de fase 2
+ph2_in_progress = df[
+    (df['Status'] == 'PH1_Pending_Send_Magic_link') |
+    (df['Status'] == 'PH1_Magic_Link_Sent')
+].shape[0]
+
+#separamos los de fase 3 (esta vez con percentiles)
+ph3_in_progress = df[df['Status'] == 'PH3_Internal_Evaluation'].shape[0]
+
+ph3_q1 = np.percentile(df[df['Status'] == ''])
