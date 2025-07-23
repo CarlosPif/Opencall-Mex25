@@ -438,15 +438,96 @@ ph1_rejection = df[
 
 ph1_waiting_list = df[
     df['Status'] == 'PH1_Review'
-]
+].shape[0]
 
 #separamos los de fase 2
 ph2_in_progress = df[
-    (df['Status'] == 'PH1_Pending_Send_Magic_link') |
+    (df['Status'] == 'PH1_Pending_Send_Magic_Link') |
     (df['Status'] == 'PH1_Magic_Link_Sent')
 ].shape[0]
 
 #separamos los de fase 3 (esta vez con percentiles)
 ph3_in_progress = df[df['Status'] == 'PH3_Internal_Evaluation'].shape[0]
 
-ph3_q1 = np.percentile(df[df['Status'] == ''])
+ph3_df = df[
+    (df['Status'] != 'PH1_To_Be_Rejected') &
+    (df['Status'] != 'PH1_Rejected') &
+    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
+    (df['Status'] != 'PH1_Review')
+]
+
+ph3_q1 = np.percentile(ph3_df['PH3_Final_Score'], 25)
+ph3_q3 = np.percentile(ph3_df['PH3_Final_Score'], 75)
+
+ph3_rejection    = ph3_df[ph3_df['PH3_Final_Score'] <= ph3_q1].shape[0]
+ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Final_Score'] > ph3_q1)].shape[0]
+ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
+
+#vamos con los de la fase 4
+
+
+st.markdown(f"""
+<style>
+table {{
+border-collapse: collapse;
+width: 80%;
+margin: 30px auto;
+font-family: "Segoe UI", sans-serif;
+box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}}
+
+th, td {{
+border: 1px solid #ddd;
+text-align: center;
+padding: 12px;
+}}
+
+th {{
+background-color: #f4f4f4;
+font-weight: 600;
+}}
+
+tr:nth-child(even) {{
+background-color: #f9f9f9;
+}}
+
+tr:hover {{
+background-color: #f1f1f1;
+}}
+</style>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>In Progress</th>
+<th>Rejection</th>
+<th>Waiting List</th>
+<th>Passed to the Next Phase</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th scope="row">Phase 1: {ph1}</th>
+<td>-</td>
+<td>{ph1_rejection}</td>
+<td>{ph1_waiting_list}</td>
+<td>{ph2}</td>
+</tr>
+<tr>
+<th scope="row">Phase 2: {ph2}</th>
+<td>{ph2_in_progress}</td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
+</tr>
+<tr>
+<th scope="row">Phase 3: {ph2}</th>
+<td>{ph3_in_progress}</td>
+<td>{ph3_rejection}</td>
+<td>{ph3_waiting_list}</td>
+<td>{ph3_passed}</td>
+</tr>
+</tbody>
+</table>
+""", unsafe_allow_html=True)
