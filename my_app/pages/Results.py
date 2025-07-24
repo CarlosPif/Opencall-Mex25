@@ -272,7 +272,10 @@ ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
 
 #vamos con los de la fase 4
 
+
 with cols[1]:
+    st.markdown("**<p style='text-align: center;'>Funnel situation based on percentiles (not real, just for research)</p>**", unsafe_allow_html=True)
+
     st.markdown(f"""
     <style>
     table {{
@@ -302,6 +305,20 @@ with cols[1]:
     tr:hover {{
     background-color: #f1f1f1;
     }}
+
+    .divider-row th {{
+    background-color: #ffffff !important;
+    border: none;
+    padding: 12px 0;
+    font-weight: 400;
+    font-size: 14px;
+    color: #999;
+    text-align: center;
+    }}
+    .divider-row td {{
+    display: none;
+    }}
+
     </style>
 
     <table>
@@ -335,6 +352,34 @@ with cols[1]:
     <td>{ph3_rejection}</td>
     <td>{ph3_waiting_list}</td>
     <td>{ph3_passed}</td>
+    </tr>
+    <tr>
+    <th scope="row">Phase 4: {ph3_passed}</th>
+    <td>{ph3_passed}</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    </tr>
+    <tr class="divider-row">
+    <th scope="row">Percentiles</th>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    </tr>
+    <tr>
+    <th scope="row">Phase 3: {ph2}</th>
+    <td>-</td>
+    <td>Less than {round(ph3_q1, 2)}</td>
+    <td>Between {round(ph3_q1, 2)} and {round(ph3_q3, 2)}</td>
+    <td>Greater than {round(ph3_q3, 2)}</td>
+    </tr>
+    <tr>
+    <th scope="row">Phase 4: {ph3_passed}</th>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     </tr>
     </tbody>
     </table>
