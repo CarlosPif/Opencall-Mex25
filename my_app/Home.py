@@ -10,7 +10,7 @@ st.set_page_config(
 st.markdown("""
     <style>
     div.stButton > button {
-        background-color: #87CEEB;
+        background-color: #1FD0EF;
         color: white;
         border-radius: 10px;
         padding: 0.5em 1em;
