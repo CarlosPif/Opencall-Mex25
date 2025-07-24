@@ -110,6 +110,7 @@ def get_in_progress_submissions_count(form_id, api_key):
 
 total_ip = get_in_progress_submissions_count(form_id, api_key_fl)
 
+colors = ['#1FD0EF', '#FFB950', '#FAF3DC', '#1158E5', '#B9C1D4', '#F2F8FA']
 #totales
 total = df.shape[0]
 target = 1200
@@ -175,7 +176,7 @@ st.markdown(f"""
                     border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
 .sub-row{{display:flex;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
 .metric-box{{
-  background:#87CEEB;border-radius:8px;padding:10px 0 12px;
+  background:#1FD0EF;border-radius:8px;padding:10px 0 12px;
   box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;
   color:#000;flex:1 1 0;
 }}
@@ -261,9 +262,9 @@ fig.add_trace(go.Scatter(
     y=df_evolucion['Aplicaciones'],
     mode='lines+markers',
     name='Applications per day (Mexico 2025)',
-    line=dict(color='skyblue', shape='spline', width=3),
+    line=dict(color='#1FD0EF', shape='spline', width=3),
     fill='tozeroy',
-    fillcolor='rgba(135, 206, 235, 0.2)'
+    fillcolor='rgba(31, 208, 239, 0.2)'
 ))
 
 fig.add_trace(go.Scatter(
@@ -271,7 +272,7 @@ fig.add_trace(go.Scatter(
     y=df_24_evolucion['Aplicaciones'],
     mode='lines+markers',
     name='Applications per day (Mexico 2024)',
-    line=dict(color='orange', shape='spline', width=3),
+    line=dict(color='#FFB950', shape='spline', width=3),
 ))
 
 fig.update_layout(
@@ -315,7 +316,7 @@ for i, row in reference_count.iterrows():
         x0=row['PH1_reference_$startups'], x1=row['PH1_reference_$startups'],
         y0=0, y1=row['count'],
         xref='x', yref='y',
-        line=dict(color='skyblue', width=2)
+        line=dict(color='#1FD0EF', width=2)
     )
 
 
@@ -324,7 +325,7 @@ fig.add_trace(go.Scatter(
     x=reference_count['PH1_reference_$startups'],
     y=reference_count['count'],
     mode='markers+text',
-    marker=dict(color='skyblue', size=20, line=dict(color='white', width=1)),
+    marker=dict(color='#1FD0EF', size=20, line=dict(color='white', width=1)),
     text=reference_count['text'],
     textposition='top center',
     textfont=dict(color='black'),
@@ -365,7 +366,8 @@ with cols[0]:
         names='Source_leads',
         values='count',
         title='Referrals Source Mexico 2025',
-        hole=0.35              
+        hole=0.35,
+        color_discrete_sequence=colors           
     )
 
     fig.update_layout(
@@ -423,8 +425,8 @@ with cols[1]:
         textposition='outside',
         textfont=dict(color='black'),
         marker=dict(
-            color="#87CEEB",
-            line=dict(color="#5aa5c8", width=1.5),
+            color="#1FD0EF",
+            line=dict(color="black", width=1.5),
         ),
         cliponaxis=False
     ))
@@ -498,7 +500,7 @@ with cols[0]:
     )
 
     fig = px.pie(conteo_refs, names="PH1_reference_$startups", values="count",
-                    title="Mexico 2024 References")
+                    title="Mexico 2024 References", color_discrete_sequence=colors)
         
     fig.update_layout(
         legend=dict(
@@ -537,8 +539,8 @@ with cols[1]:
         textposition='outside',
         textfont=dict(color='black'),
         marker=dict(
-            color="#87CEEB",
-            line=dict(color="#5aa5c8", width=1.5),
+            color="#1FD0EF",
+            line=dict(color="black", width=1.5),
         ),
         cliponaxis=False
     ))
@@ -632,7 +634,7 @@ fig = px.bar(
     text='count',
     title=f"Applications by Day - Week of {fecha_inicio_seleccionada.strftime('%Y-%m-%d')} Comparison",
     template="plotly_white",
-    color_discrete_sequence=["#FFA500", "#87CEEB"],
+    color_discrete_sequence=["#1FD0EF", "#FFB950"],
     height=600
 )
 
@@ -686,9 +688,9 @@ fig.add_trace(go.Scatter(
     y=df_evolucion_25['Acumulado'],
     mode='lines+markers',
     name='2025 Accumulated',
-    line=dict(color='#87CEEB', shape='spline', width=3),
+    line=dict(color='#1FD0EF', shape='spline', width=3),
     fill='tozeroy',
-    fillcolor='rgba(135, 206, 235, 0.2)'
+    fillcolor='rgba(31, 208, 239, 0.2)'
 ))
 
 # Línea naranja - 2024
@@ -697,7 +699,7 @@ fig.add_trace(go.Scatter(
     y=df_evolucion_24['Acumulado'],
     mode='lines+markers',
     name='2024 Accumulated',
-    line=dict(color='#FFA500', shape='spline', width=3)
+    line=dict(color='#FFB950', shape='spline', width=3)
 ))
 
 # Diseño
@@ -736,7 +738,7 @@ with cols[0]:
     # Convertimos a DataFrame para graficar
     df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Phase 1 Red Flag Reasons', text='Cantidad', color='Motivo')
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Phase 1 Red Flag Reasons', text='Cantidad', color_discrete_sequence=colors)
 
     fig.update_layout(
         xaxis_title="",
@@ -770,7 +772,7 @@ with cols[1]:
     # Convertimos a DataFrame para graficar
     df_conteo = pd.DataFrame(conteo.items(), columns=["Motivo", "Cantidad"])
 
-    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Pahse 2 Red Flag Reasons', text='Cantidad', color='Motivo')
+    fig = px.bar(df_conteo, x='Motivo', y='Cantidad', title='Pahse 2 Red Flag Reasons', text='Cantidad', color_discrete_sequence=colors)
 
     fig.update_layout(
         xaxis_title="",
