@@ -73,7 +73,8 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 def get_in_progress_submissions_count(form_id, api_key):
     total_responses = 0
     after = None
-    size = 100  # Fillout permite hasta 100
+    size = 150
+    seen_cursors = set()
 
     while True:
         url = f"https://api.fillout.com/v1/api/forms/{form_id}/submissions"
@@ -83,23 +84,29 @@ def get_in_progress_submissions_count(form_id, api_key):
             "limit": size
         }
         if after:
-            params['after'] = after
+            params["after"] = after
 
         response = requests.get(url, headers=headers, params=params)
 
-        if response.status_code == 200:
-            data = response.json()
-            responses = data.get("responses", [])
-            total_responses += len(responses)
+        if response.status_code != 200:
+            raise Exception(f"Error Fillout API: {response.status_code} - {response.text}")
 
-            after = data.get("pageInfo", {}).get("endCursor", None)
-            if not after or not data.get("pageInfo", {}).get("hasNextPage", False):
-                break
-        else:
-            st.error(f"Error Fillout API: {response.status_code} - {response.text}")
+        data = response.json()
+        responses = data.get("responses", [])
+        total_responses += len(responses)
+
+        print(f"Fetched: {len(responses)} | Total: {total_responses}")
+
+        page_info = data.get("pageInfo", {})
+        after = page_info.get("endCursor")
+
+        # 🛑 Check for repeated cursor to avoid infinite loop
+        if not after or after in seen_cursors:
             break
+        seen_cursors.add(after)
 
     return total_responses
+
 
 total_ip = get_in_progress_submissions_count(form_id, api_key_fl)
 
