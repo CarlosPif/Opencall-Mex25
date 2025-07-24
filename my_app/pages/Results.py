@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import plotly.express as px
+import requests
 
 # Configuracion de AirTable
 api_key = st.secrets["airtable"]["api_key"]
@@ -14,6 +15,10 @@ table_id = st.secrets["airtable"]["table_id"]
 
 api = Api(api_key)
 table = api.table(base_id, table_id)
+
+#fillout
+api_key_fl = st.secrets['fillout']['api_key']
+form_id = st.secrets['fillout']['form_id']
 
 #sacamos los datos para la vista de 1a evaluacion
 records = table.all(view='All applicants  by Phase')
@@ -27,6 +32,49 @@ def fix_cell(val):
     return val
 
 df = df.map(fix_cell)
+
+#Llamada a Fillout
+def get_in_progress_submissions_count(form_id, api_key):
+    total_responses = 0
+    after = None
+    size = 150
+    seen_cursors = set()
+
+    while True:
+        url = f"https://api.fillout.com/v1/api/forms/{form_id}/submissions"
+        headers = {"Authorization": f"Bearer {api_key}"}
+        params = {
+            "status": "in_progress",
+            "limit": size
+        }
+        if after:
+            params["after"] = after
+
+        response = requests.get(url, headers=headers, params=params)
+
+        if response.status_code != 200:
+            raise Exception(f"Error Fillout API: {response.status_code} - {response.text}")
+
+        data = response.json()
+        responses = data.get("responses", [])
+        total_responses += len(responses)
+
+        print(f"Fetched: {len(responses)} | Total: {total_responses}")
+
+        page_info = data.get("pageInfo", {})
+        after = page_info.get("endCursor")
+
+        # 🛑 Check for repeated cursor to avoid infinite loop
+        if not after or after in seen_cursors:
+            break
+        seen_cursors.add(after)
+
+    return total_responses
+
+
+total_ip = get_in_progress_submissions_count(form_id, api_key_fl)
+
+colors = ['#1FD0EF', '#FFB950', '#FAF3DC', '#1158E5', '#B9C1D4', '#F2F8FA']
 
 #Comenzamos con el dashboard
 st.set_page_config(
@@ -77,7 +125,7 @@ st.markdown(f"""
                     border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
 .sub-row{{display:flex;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
 .metric-box{{
-  background:#87CEEB;border-radius:8px;padding:10px 0 12px;
+  background:#1FD0EF;border-radius:8px;padding:10px 0 12px;
   box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;
   color:#000;flex:1 1 0;
 }}
@@ -119,7 +167,11 @@ funnel_count = (
             'PH3_To_Be_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
             'PH3_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
             'PH4_Pending_Judge_Assignment': 'Phase 4 (Judge Evaluation)',
-            'PH4_Judge_Evaluation': 'Phase 4 (Judge Evaluation)'
+            'PH4_Judge_Evaluation': 'Phase 4 (Judge Evaluation)',
+            'PH1_Pending_Send_Magic_Link': 'Phase 1',
+            'PH1_To_Be_Rejected_Review': 'Phase 1',
+            'PH3_Waiting_List': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH1_To_Be_Rejected_Reviewed': 'Phase 1'
         }
     )
 )
@@ -131,21 +183,23 @@ funnel_count = (
 )
 
 funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
-funnel_count['pct'] = round(funnel_count['count'] / total * 100, 2)
-funnel_count['text'] = funnel_count['count'].astype(str) + " (" + funnel_count['pct'].astype(str) + "%)"
-
+funnel_count['pct_conv'] = funnel_count['count'].pct_change()
+funnel_count['pct_conv'] = funnel_count['pct_conv'].apply(lambda x: f"{(1 + x)*100:.2f}%" if pd.notnull(x) else "")
+funnel_count['label'] = funnel_count.apply(
+    lambda row: f"{row['count']} ({row['pct_conv']})" if row['pct_conv'] else f"{row['count']}", axis=1
+)
 
 fig = go.Figure()
 
 fig.add_traces(go.Funnel(
     x=funnel_count['count'],
     y=funnel_count['Status'],
-    text=funnel_count['text'],
+    text=funnel_count['label'],
     textinfo="text",
     marker=dict(
-        color='#87CEEB',
+        color = colors,
         line=dict(
-            color='#5aa5c8',
+            color='black',
             width=1.5
         )
     ),
@@ -153,13 +207,138 @@ fig.add_traces(go.Funnel(
 ))
 
 fig.update_layout(
-    title='Selection process funnel chart',
+    title='Selection process funnel with conversion rates',
     yaxis=dict(
         tickfont=dict(color='black')
     )
 )
 
-st.plotly_chart(fig)
+cols = st.columns(2)
+
+with cols[0]:
+    st.plotly_chart(fig)
+
+#=======================================tabla percentiles=================================================
+#vamos a dividir todo solo entre fases
+ph1 = df['Status'].shape[0]
+ph2 = df[
+    (df['Status'] != 'PH1_To_Be_Rejected') &
+    (df['Status'] != 'PH1_Rejected') &
+    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
+    (df['Status'] != 'PH1_Review')
+    ].shape[0]
+ph4 = df[
+    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df['Status'] == 'PH4_Judge_Evaluation')
+].shape[0]
+
+#Ahora vamos a sacartodos los numeros de la tabla que vamos a hacer con lo de los percentiles. Excepto para phase 1
+
+#separamos los de phase 1
+ph1_in_progress = total_ip
+
+ph1_rejection = df[
+    (df['Status'] == 'PH1_Rejected') |
+    (df['Status'] == 'PH1_To_Be_Rejected') |
+    (df['Status'] == 'PH1_To_Be_Rejected_Reviewed')
+].shape[0]
+
+ph1_waiting_list = df[
+    df['Status'] == 'PH1_Review'
+].shape[0]
+
+#separamos los de fase 2
+ph2_in_progress = df[
+    (df['Status'] == 'PH1_Pending_Send_Magic_Link') |
+    (df['Status'] == 'PH1_Magic_Link_Sent')
+].shape[0]
+
+#separamos los de fase 3 (esta vez con percentiles)
+ph3_in_progress = df[df['Status'] == 'PH3_Internal_Evaluation'].shape[0]
+
+ph3_df = df[
+    (df['Status'] != 'PH1_To_Be_Rejected') &
+    (df['Status'] != 'PH1_Rejected') &
+    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
+    (df['Status'] != 'PH1_Review')
+]
+
+ph3_q1 = np.percentile(ph3_df['PH3_Final_Score'], 25)
+ph3_q3 = np.percentile(ph3_df['PH3_Final_Score'], 75)
+
+ph3_rejection    = ph3_df[ph3_df['PH3_Final_Score'] <= ph3_q1].shape[0]
+ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Final_Score'] > ph3_q1)].shape[0]
+ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
+
+#vamos con los de la fase 4
+
+with cols[1]:
+    st.markdown(f"""
+    <style>
+    table {{
+    border-collapse: collapse;
+    width: 80%;
+    margin: 30px auto;
+    font-family: "Segoe UI", sans-serif;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    }}
+
+    th, td {{
+    border: 1px solid #ddd;
+    text-align: center;
+    padding: 12px;
+    }}
+
+    th {{
+    background-color: #f4f4f4;
+    font-weight: 600;
+    }}
+
+    tr:nth-child(even) {{
+    background-color: #f9f9f9;
+    }}
+
+    tr:hover {{
+    background-color: #f1f1f1;
+    }}
+    </style>
+
+    <table>
+    <thead>
+    <tr>
+    <th></th>
+    <th>In Progress</th>
+    <th>Rejection</th>
+    <th>Waiting List</th>
+    <th>Passed to the Next Phase</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <th scope="row">Phase 1: {ph1}</th>
+    <td>{ph1_in_progress}</td>
+    <td>{ph1_rejection}</td>
+    <td>{ph1_waiting_list}</td>
+    <td>{ph2}</td>
+    </tr>
+    <tr>
+    <th scope="row">Phase 2: {ph2}</th>
+    <td>{ph2_in_progress}</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
+    </tr>
+    <tr>
+    <th scope="row">Phase 3: {ph2}</th>
+    <td>{ph3_in_progress}</td>
+    <td>{ph3_rejection}</td>
+    <td>{ph3_waiting_list}</td>
+    <td>{ph3_passed}</td>
+    </tr>
+    </tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
 #=====================Barras con cuantas aplicaciones hay en cada fase==============================
 df_phase = (
@@ -168,12 +347,13 @@ df_phase = (
             'PH1_To_Be_Rejected': 'Rejected in phase 1',
             'PH1_Review': 'Review for the phase 1',
             'PH1_Rejected': 'Rejected in phase 1',
-            'PH1_Pending_Send_Magic_Link': 'Pending to send magic link',
-            'PH1_Magic_Link_Sent': 'Magic link to phase 2 sent',
-            'PH1_To_Be_Rejected_Review': 'Rejected in phase 1',
+            'PH1_Pending_Send_Magic_Link': 'Magic link to phase 2',
+            'PH1_Magic_Link_Sent': 'Magic link to phase 2',
+            'PH1_To_Be_Rejected_Reviewed': 'Rejected in phase 1',
             'PH1_Rejected_Review': 'Rejected in phase 1',
             'PH3_Internal_Evaluation': 'Internal Evaluation (Phase 3)',
             'PH3_To_Be_Rejected': 'Rejected in phase 3',
+            'PH3_Waiting_List': 'Rejected in phase 3',
             'PH3_Rejected': 'Rejected in phase 3',
             'PH4_Pending_Judge_Assignment': 'Pending judge assignment',
             'PH4_Judge_Evaluation': 'Judge Evaluation (Phase 4)'
@@ -193,6 +373,7 @@ df_phase['text'] = df_phase['count'].astype(str) + " (" + df_phase['pct'].astype
 orden = [
     'Rejected in phase 1',
     'Review for the phase 1',
+    'Magic link to phase 2',
     'Internal Evaluation (Phase 3)',
     'Rejected in phase 3',
     'Pending judge assignment',
@@ -208,8 +389,8 @@ fig.add_traces(go.Bar(
     textposition='outside',
     textfont=dict(color='black'),
     marker=dict(
-        color="#87CEEB",
-        line=dict(color="#5aa5c8", width=1.5),
+        color=colors,
+        line=dict(color="black", width=1.5),
     ),
     cliponaxis=False
     ))
@@ -239,11 +420,11 @@ fig.add_traces(go.Scatter(
     mode='lines',
     name='Final Score',
     line=dict(
-        color='skyblue',
+        color='#1FD0EF',
         width=2
     ),
     fill='tozeroy',
-    fillcolor='rgba(135, 206, 235, 0.2)'
+    fillcolor='rgba(31, 208, 239, 0.2)'
 ))
 
 fig.update_layout(
@@ -332,202 +513,4 @@ st.markdown(html_table, unsafe_allow_html=True)
 
 #==========================NUevo diseño que meto aqui tal cual==============================
 #primero la columna con los cuadrados
-#vamos a dividir todo solo entre fases
-ph1 = df['Status'].shape[0]
-ph2 = df[
-    (df['Status'] != 'PH1_To_Be_Rejected') &
-    (df['Status'] != 'PH1_Rejected') &
-    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
-    (df['Status'] != 'PH1_Review')
-    ].shape[0]
-ph4 = df[
-    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df['Status'] == 'PH4_Judge_Evaluation')
-].shape[0]
 
-st.markdown(f"""
-<style>
-.card {{
-  max-width: 600px;
-  margin: auto;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 6px rgba(0,0,0,.08);
-  text-align: center;
-  font-family: "Segoe UI", sans-serif;
-  color: #000;
-}}
-
-.metric-column {{
-  display: gflex;
-  flex-direction: column;
-  gap: 1.2rem;
-  margin-top: 1rem
-}}
-
-.metric-box{{
-  background:#87CEEB;border-radius:8px;padding:10px 0 12px;
-  box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;
-  color:#000;flex:1 1 0;
-}}
-
-.card-title {{
-  font-size: 20px;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  border-bottom: 2px solid #000;
-  display: inline-block;
-  padding-bottom: 4px;
-}}
-
-.card-metric {{
-  font-size: 36px;
-  font-weight: bold;
-  margin: 0.4rem 0;
-}}
-
-.card-label {{
-  font-size: 14px;
-  letter-spacing: 0.3px;
-  color: #555;
-}}
-</style>
-
-<div class="card">
-<div class="card-title">Metrics Overview</div>
-<div class="grid-metrics">
-
-<div class="metric-box">
-<div class="card-metric">{ph1}</div>
-<div class="card-label">Number of companies that got to Phase 1</div>
-</div>
-
-<div class="metric-box">
-<div class="card-metric">{ph2}</div>
-<div class="card-label">Number of companies that got to Phase 2</div>
-</div>
-
-<div class="metric-box">
-<div class="card-metric">{ph2}</div>
-<div class="card-label">Number of companies that got to Phase 3</div>
-</div>
-
-<div class="metric-box">
-<div class="card-metric">{ph4}</div>
-<div class="card-label">Number of companies that got to Phase 4</div>
-</div>
-
-</div>
-</div>
-""", unsafe_allow_html=True)
-
-#Ahora vamos a sacartodos los numeros de la tabla que vamos a hacer con lo de los percentiles. Excepto para phase 1
-
-#separamos los de phase 1
-ph1_in_progress = df[
-    (df['Status'] == 'PH1_Pending_Send_Magic_link') |
-    (df['Status'] == 'PH1_Magic_Link_Sent')              #Cambiar esto a los in progress de fillout
-].shape[0]
-
-ph1_rejection = df[
-    (df['Status'] == 'PH1_Rejected') |
-    (df['Status'] == 'PH1_To_Be_Rejected') |
-    (df['Status'] == 'PH1_To_Be_Rejected_Reviewed')
-].shape[0]
-
-ph1_waiting_list = df[
-    df['Status'] == 'PH1_Review'
-].shape[0]
-
-#separamos los de fase 2
-ph2_in_progress = df[
-    (df['Status'] == 'PH1_Pending_Send_Magic_Link') |
-    (df['Status'] == 'PH1_Magic_Link_Sent')
-].shape[0]
-
-#separamos los de fase 3 (esta vez con percentiles)
-ph3_in_progress = df[df['Status'] == 'PH3_Internal_Evaluation'].shape[0]
-
-ph3_df = df[
-    (df['Status'] != 'PH1_To_Be_Rejected') &
-    (df['Status'] != 'PH1_Rejected') &
-    (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
-    (df['Status'] != 'PH1_Review')
-]
-
-ph3_q1 = np.percentile(ph3_df['PH3_Final_Score'], 25)
-ph3_q3 = np.percentile(ph3_df['PH3_Final_Score'], 75)
-
-ph3_rejection    = ph3_df[ph3_df['PH3_Final_Score'] <= ph3_q1].shape[0]
-ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Final_Score'] > ph3_q1)].shape[0]
-ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
-
-#vamos con los de la fase 4
-
-
-st.markdown(f"""
-<style>
-table {{
-border-collapse: collapse;
-width: 80%;
-margin: 30px auto;
-font-family: "Segoe UI", sans-serif;
-box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-}}
-
-th, td {{
-border: 1px solid #ddd;
-text-align: center;
-padding: 12px;
-}}
-
-th {{
-background-color: #f4f4f4;
-font-weight: 600;
-}}
-
-tr:nth-child(even) {{
-background-color: #f9f9f9;
-}}
-
-tr:hover {{
-background-color: #f1f1f1;
-}}
-</style>
-
-<table>
-<thead>
-<tr>
-<th></th>
-<th>In Progress</th>
-<th>Rejection</th>
-<th>Waiting List</th>
-<th>Passed to the Next Phase</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<th scope="row">Phase 1: {ph1}</th>
-<td>-</td>
-<td>{ph1_rejection}</td>
-<td>{ph1_waiting_list}</td>
-<td>{ph2}</td>
-</tr>
-<tr>
-<th scope="row">Phase 2: {ph2}</th>
-<td>{ph2_in_progress}</td>
-<td>-</td>
-<td>-</td>
-<td>-</td>
-</tr>
-<tr>
-<th scope="row">Phase 3: {ph2}</th>
-<td>{ph3_in_progress}</td>
-<td>{ph3_rejection}</td>
-<td>{ph3_waiting_list}</td>
-<td>{ph3_passed}</td>
-</tr>
-</tbody>
-</table>
-""", unsafe_allow_html=True)
