@@ -86,7 +86,7 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 
 #================================Tablita con resultados generales=========================================
 #Todos los que han sido evaluados POR EL team ya (los de Pending )
-pending_judge = df[df['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
+pending_judge = df[(df['Status'] == 'PH4_Pending_Judge_Assignment') | (df['Status'] == 'PH4_Judge_Evaluation')].shape[0]
 
 #contamos cuantos han pasado a team evaluation
 ph2 = df[
@@ -272,7 +272,15 @@ ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Fi
 ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
 
 #vamos con los de la fase 4
+ph4_df = df[df['Status'] == 'PH4_Judge_Evaluation'].dropna(subset=['Judges_Average'])
+ph4_df['Judges_Average'] = pd.to_numeric(ph4_df['Judges_Average'], errors='coerce')
 
+ph4_q1 = np.percentile(ph4_df['Judges_Average'], 25)
+ph4_q3 = np.percentile(ph4_df['Judges_Average'], 75)
+
+ph4_rejection = ph4_df[ph4_df['Judges_Average'] <= ph4_q1].shape[0]
+ph4_waiting_list = ph4_df[(ph4_df['Judges_Average'] > ph4_q1) & (ph4_df['Judges_Average'] < ph4_q3)].shape[0]
+ph4_passed = ph4_df[ph4_df['Judges_Average'] >= ph4_q3].shape[0]
 
 with cols[1]:
     st.markdown("**<p style='text-align: center;'>Funnel situation based on percentiles (not real, just for research)</p>**", unsafe_allow_html=True)
@@ -357,9 +365,9 @@ with cols[1]:
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>{ph3_passed}</td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <td>{ph4_rejection}</td>
+    <td>{ph4_waiting_list}</td>
+    <td>{ph4_passed}</td>
     </tr>
     <tr class="divider-row">
     <th scope="row">Percentiles</th>
@@ -377,10 +385,10 @@ with cols[1]:
     </tr>
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
-    <td></td>
-    <td></td>
-    <td></td>
-    <td></td>
+    <td>-</td>
+    <td>less than {ph4_q1}</td>
+    <td>Between {ph4_q1} and {ph4_q3}</td>
+    <td>Greater than {ph4_q3}</td>
     </tr>
     </tbody>
     </table>
@@ -557,6 +565,42 @@ html_table += """
 
 st.markdown(html_table, unsafe_allow_html=True)
 
-#==========================NUevo diseño que meto aqui tal cual==============================
-#primero la columna con los cuadrados
+st.markdown("**<h2>Judge evaluation (Phase 4)</h2>**", unsafe_allow_html=True)
+st.markdown("Below a results analysis of the Judge Evaluation phase")
 
+evaluation_ph4 = list(df[df['Status'] == 'PH4_Judge_Evaluation']['Judges_Average'].dropna())
+
+kde = gaussian_kde(evaluation_ph4)
+x_j = np.linspace(min(evaluation_ph4), max(evaluation_ph4), 200)
+y_j = kde(x_j) * len(evaluation_ph4)
+
+fig = go.Figure()
+
+fig.add_traces(go.Scatter(
+    x=x_j,
+    y=y_j,
+    mode='lines',
+    name='Final Score',
+    line=dict(
+        color='#1FD0EF',
+        width=2
+    ),
+    fill='tozeroy',
+    fillcolor='rgba(31, 208, 239, 0.2)'
+))
+
+fig.update_layout(
+    title='Judge Evaluation Scoring Distribution',
+    bargap=0.1,
+    xaxis=dict(
+        title=dict(text='Score', font=dict(color='black')),
+        tickfont=dict(color='black'),
+        range=[1, 5]
+    ),
+    yaxis=dict(
+        title=dict(text='Number of companies', font=dict(color='black')),
+        tickfont=dict(color='black'),
+    )
+)
+
+st.plotly_chart(fig)
