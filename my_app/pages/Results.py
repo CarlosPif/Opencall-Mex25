@@ -260,7 +260,8 @@ ph3_df = df[
     (df['Status'] != 'PH1_To_Be_Rejected') &
     (df['Status'] != 'PH1_Rejected') &
     (df['Status'] != 'PH1_To_Be_Rejected_Reviewed') &
-    (df['Status'] != 'PH1_Review')
+    (df['Status'] != 'PH1_Review') &
+    (df['PH3_Final_Score'] >= 1)
 ]
 
 ph3_q1 = np.percentile(ph3_df['PH3_Final_Score'], 25)
