@@ -86,7 +86,11 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 
 #================================Tablita con resultados generales=========================================
 #Todos los que han sido evaluados POR EL team ya (los de Pending )
-pending_judge = df[(df['Status'] == 'PH4_Pending_Judge_Assignment') | (df['Status'] == 'PH4_Judge_Evaluation')].shape[0]
+pending_judge = (df[
+    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List')
+    ].shape[0])
 
 #contamos cuantos han pasado a team evaluation
 ph2 = df[
@@ -95,7 +99,8 @@ ph2 = df[
     (df['Status'] == 'PH3_Rejected') | 
     (df['Status'] == 'PH3_To_Be_Rejected') | 
     (df['Status'] == 'PH3_Internal_Evaluation') |
-    (df['Status'] == 'PH3_Waiting_List')
+    (df['Status'] == 'PH3_Waiting_List') |
+    (df['Status'] == 'PH4_Waiting_List')
     ].shape[0]
 
 #porcentaje de exito en la team evaluation
@@ -159,19 +164,18 @@ funnel_count = (
             'PH1_To_Be_Rejected': 'Phase 1',
             'PH1_Rejected': 'Phase 1',
             'PH1_Review': 'Phase 1',
-            'PH1_Pending_Send_Magic_link': 'Phase 1',
-            'PH1_Magic_Link_Sent': 'Phase 1',
-            'PH1_To_Be_Rejected_Review': 'Phase 1',
+            'PH1_Pending_Send_Magic_Link': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH1_Magic_Link_Sent': 'Phase 2 & 3 (Internal Evaluation)',
             'PH1_Rejected_Review': 'Phase 1',
             'PH3_Internal_Evaluation': 'Phase 2 & 3 (Internal Evaluation)',
             'PH3_To_Be_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
             'PH3_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
             'PH4_Pending_Judge_Assignment': 'Phase 4 (Judge Evaluation)',
             'PH4_Judge_Evaluation': 'Phase 4 (Judge Evaluation)',
-            'PH1_Pending_Send_Magic_Link': 'Phase 1',
-            'PH1_To_Be_Rejected_Review': 'Phase 1',
             'PH3_Waiting_List': 'Phase 2 & 3 (Internal Evaluation)',
-            'PH1_To_Be_Rejected_Reviewed': 'Phase 1'
+            'PH1_To_Be_Rejected_Reviewed': 'Phase 1',
+            'PH4_Waiting_List': 'Phase 4 (Judge Evaluation)',
+            'PH4_Rejected': 'Phase 4 (Judge Evaluation)'
         }
     )
 )
@@ -229,7 +233,8 @@ ph2 = df[
     ].shape[0]
 ph4 = df[
     (df['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df['Status'] == 'PH4_Judge_Evaluation')
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List')
 ].shape[0]
 
 #Ahora vamos a sacartodos los numeros de la tabla que vamos a hacer con lo de los percentiles. Excepto para phase 1
@@ -272,7 +277,12 @@ ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Fi
 ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
 
 #vamos con los de la fase 4
-ph4_df = df[df['Status'] == 'PH4_Judge_Evaluation'].dropna(subset=['Judges_Average'])
+ph4_df = df[
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List')
+    ].dropna(subset=['Judges_Average'])
+
+ph4_in_progress = df[df['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
 ph4_df['Judges_Average'] = pd.to_numeric(ph4_df['Judges_Average'], errors='coerce')
 
 ph4_q1 = np.percentile(ph4_df['Judges_Average'], 25)
@@ -364,7 +374,7 @@ with cols[1]:
     </tr>
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
-    <td>{ph3_passed}</td>
+    <td>{ph4_in_progress}</td>
     <td>{ph4_rejection}</td>
     <td>{ph4_waiting_list}</td>
     <td>{ph4_passed}</td>
@@ -386,9 +396,9 @@ with cols[1]:
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>-</td>
-    <td>less than {ph4_q1}</td>
-    <td>Between {ph4_q1} and {ph4_q3}</td>
-    <td>Greater than {ph4_q3}</td>
+    <td>less than {round(ph4_q1, 2)}</td>
+    <td>Between {round(ph4_q1, 2)} and {round(ph4_q3, 2)}</td>
+    <td>Greater than {round(ph4_q3, 2)}</td>
     </tr>
     </tbody>
     </table>
@@ -409,8 +419,9 @@ df_phase = (
             'PH3_To_Be_Rejected': 'Rejected in phase 3',
             'PH3_Waiting_List': 'Rejected in phase 3',
             'PH3_Rejected': 'Rejected in phase 3',
-            'PH4_Pending_Judge_Assignment': 'Pending judge assignment',
-            'PH4_Judge_Evaluation': 'Judge Evaluation (Phase 4)'
+            'PH4_Pending_Judge_Assignment': 'Judge Evaluation (Phase 4)',
+            'PH4_Judge_Evaluation': 'Judge Evaluation (Phase 4)',
+            'PH4_Waiting_List': 'Rejected in phase 4'
         }
     )
 )
@@ -424,14 +435,22 @@ df_phase = (
 df_phase['pct'] = round(df_phase['count'] / total * 100, 2)
 df_phase['text'] = df_phase['count'].astype(str) + " (" + df_phase['pct'].astype(str) + "%)"
 
-orden = [
+estados = [
     'Rejected in phase 1',
     'Review for the phase 1',
     'Magic link to phase 2',
     'Internal Evaluation (Phase 3)',
     'Rejected in phase 3',
     'Pending judge assignment',
+    'Judge Evaluation (Phase 4)',
+    'Rejected in phase 4'
 ]
+
+orden = []
+for estado in estados:
+    if df_phase[df_phase['Status'] == estado].shape[0] > 0:
+        orden.append(estado)
+
 df_phase = df_phase.set_index('Status').loc[orden].reset_index()
 
 fig = go.Figure()
@@ -497,13 +516,6 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
-#PRUEBA DE UN BOXPLOT
-df_box = df[df['PH3_Final_Score'] != 0]
-
-fig = px.box(df_box, y='PH3_Final_Score', points='all')
-fig.update_traces(marker_color='skyblue', line_color='black')
-st.plotly_chart(fig)
-
 #vamos a poner una tabla interactiva con los 10 mejores
 st.markdown("Top 10 Startups Internal Evaluation")
 
@@ -528,10 +540,10 @@ html_table = """
 <table style="width: 100%; border-collapse: collapse;">
 <thead>
 <tr>
-<th style="text-align: left; padding: 8px;">Startup</th>
-<th style="text-align: left; padding: 8px;">Deck (doc)</th>
-<th style="text-align: left; padding: 8px;">Deck (link)</th>
-<th style="text-align: left; padding: 8px;">Score</th>
+<th style="text-align: center; padding: 8px;">Startup</th>
+<th style="text-align: center; padding: 8px;">Deck (doc)</th>
+<th style="text-align: center; padding: 8px;">Deck (link)</th>
+<th style="text-align: center; padding: 8px;">Score</th>
 </tr>
 </thead>
 <tbody>
@@ -568,7 +580,15 @@ st.markdown(html_table, unsafe_allow_html=True)
 st.markdown("**<h2>Judge evaluation (Phase 4)</h2>**", unsafe_allow_html=True)
 st.markdown("Below a results analysis of the Judge Evaluation phase")
 
-evaluation_ph4 = list(df[df['Status'] == 'PH4_Judge_Evaluation']['Judges_Average'].dropna())
+evaluation_ph4 = list(
+    df[
+        (df['Status'] == 'PH4_Judge_Evaluation') |
+        (df['Status'] == 'PH4_Rejected') |
+        (df['Status'] == 'PH4_Waiting_List') |
+        (df['Status'] == 'PH5')
+    ]['Judges_Average']
+    .dropna()
+)
 
 kde = gaussian_kde(evaluation_ph4)
 x_j = np.linspace(min(evaluation_ph4), max(evaluation_ph4), 200)
@@ -604,3 +624,69 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
+
+st.markdown("Top 10 Startups Judge Evaluation")
+
+df['Deck (doc)'] = df['deck_$startup'].apply(
+    lambda x: x[0]['url'] if isinstance(x, list) and len(x) > 0 and isinstance(x[0], dict) and 'url' in x[0] else None
+)
+
+df['deck_icon'] = df['deck_$startup'].apply(
+    lambda x: x[0].get('thumbnails', {}).get('small', {}).get('url') if isinstance(x, list) and x else None
+)
+
+top_10 = df.sort_values(by='Judges_Average', ascending=False).head(10)
+top_10['Judges_Average'] = top_10['Judges_Average'].apply(lambda x: round(x, 2))
+
+top_10 = top_10.rename(columns={
+    'deck_URL': 'Deck (url)',
+    'Judges_Average': 'Judge Evaluation Average'
+})
+
+html_table = """
+<div style="overflow-x: auto; width: 100%;">
+<table style="width: 100%; border-collapse: collapse;">
+<thead>
+<tr>
+<th style="text-align: center; padding: 8px;">Startup</th>
+<th style="text-align: center; padding: 8px;">Deck (doc)</th>
+<th style="text-align: center; padding: 8px;">Deck (link)</th>
+<th style="text-align: center; padding: 8px;">Score</th>
+<th style="text-align: center; padding: 8px;">Judges</th>
+</tr>
+</thead>
+<tbody>
+"""
+
+for _, row in top_10.iterrows():
+    website_link = (
+        f"<a href='{row['Deck (doc)']}' target='_blank'>"
+        f"<img src='{row['deck_icon']}' alt='Website' width='40' style='vertical-align: middle;'/>"
+        "</a>"
+        if pd.notna(row['Deck (doc)']) and pd.notna(row['deck_icon']) else ""
+    )
+    deck_link = (
+        f"<a href='{row['Deck (url)']}' target='_blank'>{row['Deck (url)']}</a>"
+        if pd.notna(row['Deck (url)']) else ""
+    )
+    judges = (
+        f"<p>{row['Judges_Evaluated']}</p>"
+        if pd.notna(row['Judges_Evaluated']) else ""
+    )
+    html_table += f"""
+<tr>
+<td style="padding: 8px;">{row['Startup name']}</td>
+<td style="padding: 8px;">{website_link}</td>
+<td style="padding: 8px;">{deck_link}</td>
+<td style="padding: 8px;">{row['Judge Evaluation Average']}</td>
+<td style="padding: 8px;">{judges}</td>
+</tr>
+"""
+
+html_table += """
+</tbody>
+</table>
+</div>
+"""
+
+st.markdown(html_table, unsafe_allow_html=True)
