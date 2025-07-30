@@ -89,7 +89,8 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 pending_judge = (df[
     (df['Status'] == 'PH4_Pending_Judge_Assignment') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
-    (df['Status'] == 'PH4_Waiting_List')
+    (df['Status'] == 'PH4_Rejected') |
+    (df['Status'] == 'PH5_Team_Call')
     ].shape[0])
 
 #contamos cuantos han pasado a team evaluation
@@ -100,7 +101,8 @@ ph2 = df[
     (df['Status'] == 'PH3_To_Be_Rejected') | 
     (df['Status'] == 'PH3_Internal_Evaluation') |
     (df['Status'] == 'PH3_Waiting_List') |
-    (df['Status'] == 'PH4_Waiting_List')
+    (df['Status'] == 'PH4_Rejected') |
+    (df['Status'] == 'PH5_Team_Call')
     ].shape[0]
 
 #porcentaje de exito en la team evaluation
@@ -175,7 +177,8 @@ funnel_count = (
             'PH3_Waiting_List': 'Phase 2 & 3 (Internal Evaluation)',
             'PH1_To_Be_Rejected_Reviewed': 'Phase 1',
             'PH4_Waiting_List': 'Phase 4 (Judge Evaluation)',
-            'PH4_Rejected': 'Phase 4 (Judge Evaluation)'
+            'PH4_Rejected': 'Phase 4 (Judge Evaluation)',
+            'PH5_Team_Call': 'Phase 5 (Team Call)'
         }
     )
 )
@@ -277,20 +280,18 @@ ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Fi
 ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
 
 #vamos con los de la fase 4
-ph4_df = df[
-    (df['Status'] == 'PH4_Judge_Evaluation') |
-    (df['Status'] == 'PH4_Waiting_List')
-    ].dropna(subset=['Judges_Average'])
+df_4 =df.dropna(subset=['Judges_Average'])
 
 ph4_in_progress = df[df['Status'] == 'PH4_Pending_Judge_Assignment'].shape[0]
-ph4_df['Judges_Average'] = pd.to_numeric(ph4_df['Judges_Average'], errors='coerce')
+df_4['Judges_Average'] = pd.to_numeric(df_4['Judges_Average'], errors='coerce')
 
-ph4_q1 = np.percentile(ph4_df['Judges_Average'], 25)
-ph4_q3 = np.percentile(ph4_df['Judges_Average'], 75)
+ph4_q1 = np.percentile(df_4['Judges_Average'], 25)
+ph4_q2 = np.percentile(df_4['Judges_Average'], 50)
+ph4_q3 = np.percentile(df_4['Judges_Average'], 75)
 
-ph4_rejection = ph4_df[ph4_df['Judges_Average'] <= ph4_q1].shape[0]
-ph4_waiting_list = ph4_df[(ph4_df['Judges_Average'] > ph4_q1) & (ph4_df['Judges_Average'] < ph4_q3)].shape[0]
-ph4_passed = ph4_df[ph4_df['Judges_Average'] >= ph4_q3].shape[0]
+ph4_rejection = df_4[df_4['Judges_Average'] < ph4_q2].shape[0]
+ph4_waiting_list = df_4[(df_4['Judges_Average'] > ph4_q1) & (df_4['Judges_Average'] < ph4_q3)].shape[0]
+ph4_passed = df_4[(df_4['Judges_Average'] >= ph4_q2)].shape[0]
 
 with cols[1]:
     st.markdown("**<p style='text-align: center;'>Funnel situation based on percentiles (not real, just for research)</p>**", unsafe_allow_html=True)
@@ -376,7 +377,7 @@ with cols[1]:
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>{ph4_in_progress}</td>
     <td>{ph4_rejection}</td>
-    <td>{ph4_waiting_list}</td>
+    <td>-</td>
     <td>{ph4_passed}</td>
     </tr>
     <tr class="divider-row">
@@ -396,9 +397,9 @@ with cols[1]:
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>-</td>
-    <td>less than {round(ph4_q1, 2)}</td>
-    <td>Between {round(ph4_q1, 2)} and {round(ph4_q3, 2)}</td>
-    <td>Greater than {round(ph4_q3, 2)}</td>
+    <td>less than {round(ph4_q2, 2)}</td>
+    <td>-</td>
+    <td>Greater than {round(ph4_q2, 2)}</td>
     </tr>
     </tbody>
     </table>
