@@ -738,6 +738,7 @@ fig.update_layout(
         title='Judges Evaluation',
         range=[1, 5]
     ),
+    title='Difference between Judge and Team Evaluations',
     showlegend=False
 )
 
