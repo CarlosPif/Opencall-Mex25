@@ -275,9 +275,22 @@ ph3_df = df[
 ph3_q1 = np.percentile(ph3_df['PH3_Final_Score'], 25)
 ph3_q3 = np.percentile(ph3_df['PH3_Final_Score'], 75)
 
-ph3_rejection    = ph3_df[ph3_df['PH3_Final_Score'] <= ph3_q1].shape[0]
-ph3_waiting_list = ph3_df[(ph3_df['PH3_Final_Score'] < ph3_q3) & (ph3_df['PH3_Final_Score'] > ph3_q1)].shape[0]
-ph3_passed       = ph3_df[ph3_df['PH3_Final_Score'] >= ph3_q3].shape[0]
+ph3_rejection = ph3_df[
+    (ph3_df['Status'] == 'PH3_Rejected') |
+    (ph3_df['Status'] == 'PH3_To_Be_Rejected')
+    ].shape[0]
+ph3_waiting_list = ph3_df[
+    (ph3_df['Status'] == 'PH3_Waiting_List')
+].shape[0]
+
+
+ph3_passed = ph3_df[
+    (ph3_df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (ph3_df['Status'] == 'PH4_Judge_Evaluation') |
+    (ph3_df['Status'] == 'PH4_Waiting_List') |
+    (ph3_df['Status'] == 'PH4_Rejected') |
+    (ph3_df['Status'] == 'PH5_Team_Call')
+].shape[0]
 
 #vamos con los de la fase 4
 df_4 =df.dropna(subset=['Judges_Average'])
@@ -292,9 +305,13 @@ ph4_q1 = np.percentile(df_4['Judges_Average'], 25)
 ph4_q2 = np.percentile(df_4['Judges_Average'], 50)
 ph4_q3 = np.percentile(df_4['Judges_Average'], 75)
 
-ph4_rejection = df_4[(df_4['Judges_Average'] < ph4_q2) & (df_4['Judges_Completed_Count'] >= 2)].shape[0]
-ph4_waiting_list = df_4[(df_4['Judges_Average'] > ph4_q1) & (df_4['Judges_Average'] < ph4_q3)].shape[0]
-ph4_passed = df_4[(df_4['Judges_Average'] >= ph4_q2) & (df_4['Judges_Completed_Count'] >= 2)].shape[0]
+ph4_waiting_list = df_4[
+    df_4['Status'] == 'PH4_Waiting_List'
+].shape[0]
+
+ph4_passed = df_4[
+    df_4['Status'] == 'PH5_Team_Call'
+].shape[0]
 
 with cols[1]:
     st.markdown("**<p style='text-align: center;'>Funnel situation based on percentiles (not real, just for research)</p>**", unsafe_allow_html=True)
@@ -379,10 +396,16 @@ with cols[1]:
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>{ph4_in_progress}</td>
-    <td>{ph4_rejection}</td>
     <td>-</td>
+    <td>{ph4_waiting_list}</td>
     <td>{ph4_passed}</td>
     </tr>
+    <tr>
+    <th scope="row">Phase 5: {ph4_passed}</th>
+    <td>{ph4_passed}</td>
+    <td>-</td>
+    <td>-</td>
+    <td>-</td>
     <tr class="divider-row">
     <th scope="row">Percentiles</th>
     <td></td>
@@ -400,8 +423,8 @@ with cols[1]:
     <tr>
     <th scope="row">Phase 4: {ph3_passed}</th>
     <td>-</td>
-    <td>less than {round(ph4_q2, 2)}</td>
     <td>-</td>
+    <td>less than {round(ph4_q2, 2)}</td>
     <td>Greater than {round(ph4_q2, 2)}</td>
     </tr>
     </tbody>
@@ -425,7 +448,8 @@ df_phase = (
             'PH3_Rejected': 'Rejected in phase 3',
             'PH4_Pending_Judge_Assignment': 'Judge Evaluation (Phase 4)',
             'PH4_Judge_Evaluation': 'Judge Evaluation (Phase 4)',
-            'PH4_Waiting_List': 'Rejected in phase 4'
+            'PH4_Waiting_List': 'Rejected in phase 4',
+            'PH5_Team_Call': 'Team Call (Phase 5)'
         }
     )
 )
@@ -447,7 +471,8 @@ estados = [
     'Rejected in phase 3',
     'Pending judge assignment',
     'Judge Evaluation (Phase 4)',
-    'Rejected in phase 4'
+    'Rejected in phase 4',
+    'Team Call (Phase 5)'
 ]
 
 orden = []
@@ -799,7 +824,7 @@ for _, row in top_distance.iterrows():
 <td style="padding: 8px;">{row['Startup name']}</td>
 <td style="padding: 8px;">{website_link}</td>
 <td style="padding: 8px;">{deck_link}</td>
-<td style="padding: 8px;">{row['Judge Evaluation Average']}</td>
+<td style="padding: 8px;">{round(row['Judge Evaluation Average'], 2)}</td>
 <td style="padding: 8px;">{judges}</td>
 <td style="padding: 8px;">{round(row['PH3_Final_Score'], 2)}</td>
 <td style="padding: 8px;">{evaluators}</td>
