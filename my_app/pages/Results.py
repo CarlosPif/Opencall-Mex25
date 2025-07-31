@@ -89,7 +89,7 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 pending_judge = (df[
     (df['Status'] == 'PH4_Pending_Judge_Assignment') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
-    (df['Status'] == 'PH4_Rejected') |
+    (df['Status'] == 'PH4_Waiting_List') |
     (df['Status'] == 'PH5_Team_Call')
     ].shape[0])
 
@@ -108,6 +108,18 @@ ph2 = df[
 #porcentaje de exito en la team evaluation
 succ_pct = round(pending_judge / ph2 * 100, 2)
 
+#Vamos a contar cuantos hay en fase 5
+ph5 = df[df['Status'] == 'PH5_Team_Call'].shape[0]
+
+#cuantas llegaron a jueces
+judges = df[
+    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Team_Call')
+].shape[0]
+
+ph5_pct = round(ph5 / judges * 100, 2)
 
 st.markdown(f"""
 <style>
@@ -140,7 +152,6 @@ st.markdown(f"""
 .metric-label{{margin-top:2px;font-size:14px;letter-spacing:.3px;}}
 </style>
 
-<!-- ───────── FILA ÚNICA CON UNA TARJETA ───────── -->
 <div class="dashboard-row">
 
   <div class="big-card">
@@ -151,6 +162,16 @@ st.markdown(f"""
                                <div class="metric-label">Number of companies that got to internal evaluation</div></div>
       <div class="metric-box"><div class="metric-value">{succ_pct}%</div>
                                <div class="metric-label">Percentage of success in Internal Evaluation</div></div>
+    </div>
+  </div>
+  <div class="big-card">
+    <div class="metric-main-num">{ph5}</div>
+    <div class="metric-main-label">Total number of companies currently in Team Call</div>
+    <div class="sub-row">
+      <div class="metric-box"><div class="metric-value">{judges}</div>
+                               <div class="metric-label">Number of companies that got to Judges Evaluation</div></div>
+      <div class="metric-box"><div class="metric-value">{ph5_pct}%</div>
+                               <div class="metric-label">Percentage of success in Judge Evaluation</div></div>
     </div>
   </div>
 
