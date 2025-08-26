@@ -566,6 +566,63 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+#grafica de calidad a lo largo del tiempo
+#nos quedamos con los que han pasado
+df_quality_int = df[
+    (df['Status'] == 'Ph3_Waiting_List') |
+    (df['Status'] == 'PH3_To_Be_Rejected') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Team_Call')
+]
+
+#sacamos la media por cada dia
+df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score', 'mean'),
+    count=('PH3_Final_Score', 'count'),
+    acum=('PH3_Final_Score', 'sum')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+df_quality_int_agg['acum'] = df_quality_int_agg['acum'].cumsum()
+df_quality_int_agg['derivative'] = df_quality_int_agg['acum'].diff()
+
+#y graficamos
+fig = px.line(
+    df_quality_int_agg,
+    x='Created_str',
+    y='average',
+    title='Startups quality over time (Team Evaluation)',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+mean_value = df_quality_int_agg['average'].mean()
+
+fig.add_hline(
+    y=mean_value,
+    line_color='#FFB950',
+    line_dash='dash',
+    annotation_text=f"mean: {mean_value:.2f}",
+    annotation_position='top left'
+)
+
+st.plotly_chart(fig)
+
+fig = px.line(
+    df_quality_int_agg,
+    x='Created_str',
+    y='derivative',
+    title='Startups quality over time (Team Evaluation) variation rate',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+st.plotly_chart(fig)
 #vamos a poner una tabla interactiva con los 10 mejores
 st.markdown("Top 10 Startups Internal Evaluation")
 
@@ -675,6 +732,61 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+#otra vez una de calidad a lo largo del tiempo
+df_quality_judge = df[
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Team_Call')
+]
+
+df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).agg(
+    average=('Judges_Average', 'mean'),
+    count=('Judges_Average', 'count'),
+    acum=('Judges_Average', 'sum')
+)
+
+df_quality_judge_agg = df_quality_judge_agg.sort_values('Created_str')
+df_quality_judge_agg['acum'] = df_quality_judge_agg['acum'].cumsum()
+df_quality_judge_agg['derivative'] = df_quality_judge_agg['acum'].diff()
+
+#y graficamos
+fig = px.line(
+    df_quality_judge_agg,
+    x='Created_str',
+    y='average',
+    title='Startups quality over time (Judge Evaluation)',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+mean_value = df_quality_judge_agg['average'].mean()
+
+fig.add_hline(
+    y=mean_value,
+    line_color='#FFB950',
+    line_dash='dash',
+    annotation_text=f"mean: {mean_value:.2f}",
+    annotation_position='top left'
+)
+
+st.plotly_chart(fig)
+
+fig = px.line(
+    df_quality_judge_agg,
+    x='Created_str',
+    y='derivative',
+    title='Startups quality over time (Judge Evaluation) variation rate',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+st.plotly_chart(fig)
+
+#vamos a hacer una tabla de las mejores compañias en jueces
 st.markdown("Top 10 Startups Judge Evaluation")
 
 df['Deck (doc)'] = df['deck_$startup'].apply(
@@ -750,15 +862,19 @@ df_quality = df[
     (df['Status'] == 'PH4_Waiting_List') |
     (df['Status'] == 'PH5_Team_Call')
 ]
-
 #sacamos la media de las notas del equipo y de jueces
 df_quality['average'] = df_quality[['Judges_Average', 'PH3_Final_Score']].mean(axis=1)
 
 #y la media por cada dia
 df_quality_agg = df_quality.groupby('Created_str', as_index=False).agg(
     average=('average', 'mean'),
-    count=('average', 'count')
+    count=('average', 'count'),
+    acum=('average', 'sum')
 )
+
+df_quality_agg = df_quality_agg.sort_values('Created_str')
+df_quality_agg['acum'] = df_quality_agg['acum'].cumsum()
+df_quality_agg['derivative'] = df_quality_agg['acum'].diff()
 
 #graficamos por dias
 fig = px.line(
@@ -772,8 +888,30 @@ fig = px.line(
     color_discrete_sequence=['#1FD0EF']
 )
 
+mean_value = df_quality_agg['average'].mean()
+
+fig.add_hline(
+    y=mean_value,
+    line_color='#FFB950',
+    line_dash='dash',
+    annotation_text=f"mean: {mean_value:.2f}",
+    annotation_position='top left'
+)
+
 st.plotly_chart(fig)
 
+fig = px.line(
+    df_quality_agg,
+    x='Created_str',
+    y='derivative',
+    title='Startups quality over time (Judges and Team evaluations) variation rate',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+st.plotly_chart(fig)
 #=======================A ver un scatter plot para analizar las diferencias de puntuaciones==================
 
 df['distancia'] = abs(df['PH3_Final_Score'] - df['Judges_Average']) / np.sqrt(2)
