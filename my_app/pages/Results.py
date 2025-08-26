@@ -741,6 +741,39 @@ html_table += """
 
 st.markdown(html_table, unsafe_allow_html=True)
 
+#=====================Una grafica de calidad a lo largo del tiempo==================
+st.markdown("**<h2>Quality over time</h2>**", unsafe_allow_html=True)
+st.markdown("Below an analysis of the quality received per day")
+#nos quedamos con los que han pasado hasta jueces
+df_quality = df[
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Team_Call')
+]
+
+#sacamos la media de las notas del equipo y de jueces
+df_quality['average'] = df_quality[['Judges_Average', 'PH3_Final_Score']].mean(axis=1)
+
+#y la media por cada dia
+df_quality_agg = df_quality.groupby('Created_str', as_index=False).agg(
+    average=('average', 'mean'),
+    count=('average', 'count')
+)
+
+#graficamos por dias
+fig = px.line(
+    df_quality_agg,
+    x='Created_str',
+    y='average',
+    title='Startups quality over time (Judges and Team evaluations)',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+st.plotly_chart(fig)
+
 #=======================A ver un scatter plot para analizar las diferencias de puntuaciones==================
 
 df['distancia'] = abs(df['PH3_Final_Score'] - df['Judges_Average']) / np.sqrt(2)
