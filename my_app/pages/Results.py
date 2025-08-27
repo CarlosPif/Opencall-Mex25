@@ -687,14 +687,12 @@ st.markdown(html_table, unsafe_allow_html=True)
 st.markdown("**<h2>Judge evaluation (Phase 4)</h2>**", unsafe_allow_html=True)
 st.markdown("Below a results analysis of the Judge Evaluation phase")
 
+df_j = df.dropna(subset=['Judges_Average'])
+
 evaluation_ph4 = list(
-    df[
-        (df['Status'] == 'PH4_Judge_Evaluation') |
-        (df['Status'] == 'PH4_Rejected') |
-        (df['Status'] == 'PH4_Waiting_List') |
-        (df['Status'] == 'PH5')
+    df_j[
+        (df['Judges_Average'] != 0)
     ]['Judges_Average']
-    .dropna()
 )
 
 kde = gaussian_kde(evaluation_ph4)
