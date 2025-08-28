@@ -293,7 +293,7 @@ fig.update_layout(
         font=dict(color='black')
     ),
     xaxis_range = [df_evolucion['Created_date'].min(), hoy],
-    yaxis_range=[0, df_evolucion['Aplicaciones'].max() + 10]
+    yaxis_range=[0, 151]
 )
 
 st.plotly_chart(fig)
