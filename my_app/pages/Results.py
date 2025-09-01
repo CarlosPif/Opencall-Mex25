@@ -7,6 +7,10 @@ import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import plotly.express as px
 import requests
+import io
+from plotly.subplots import make_subplots
+import plotly.io as pio
+from PIL import Image
 
 # Configuracion de AirTable
 api_key = st.secrets["airtable"]["api_key"]
@@ -199,7 +203,8 @@ funnel_count = (
             'PH1_To_Be_Rejected_Reviewed': 'Phase 1',
             'PH4_Waiting_List': 'Phase 4 (Judge Evaluation)',
             'PH4_Rejected': 'Phase 4 (Judge Evaluation)',
-            'PH5_Team_Call': 'Phase 5 (Team Call)'
+            'PH5_Team_Call': 'Phase 5 (Team Call)',
+            'PH5_Calls_Done': 'Phase 5 (Team Call)'
         }
     )
 )
@@ -591,35 +596,75 @@ df_quality_int_agg['derivative'] = df_quality_int_agg['acum'].diff()
 fig = px.line(
     df_quality_int_agg,
     x='Created_str',
-    y='average',
-    title='Startups quality over time (Team Evaluation)',
-    markers=True,
-    line_shape='spline',
-    hover_data={'count': True},
-    color_discrete_sequence=['#1FD0EF']
-)
-
-mean_value = df_quality_int_agg['average'].mean()
-
-fig.add_hline(
-    y=mean_value,
-    line_color='#FFB950',
-    line_dash='dash',
-    annotation_text=f"mean: {mean_value:.2f}",
-    annotation_position='top left'
-)
-
-st.plotly_chart(fig)
-
-fig = px.line(
-    df_quality_int_agg,
-    x='Created_str',
     y='derivative',
     title='Startups quality over time (Team Evaluation) variation rate',
     markers=True,
     line_shape='spline',
     hover_data={'count': True},
     color_discrete_sequence=['#1FD0EF']
+)
+
+# Lista de picos conocidos
+peak_days = ["2025-07-07", "2025-07-08", "2025-07-09"]
+
+# Añadimos puntos naranjas
+for day in peak_days:
+    y_val = df_quality_int_agg.loc[df_quality_int_agg['Created_str']==day, 'derivative'].values[0]
+    fig.add_trace(
+        go.Scatter(
+            x=[day], y=[y_val],
+            mode="markers",
+            marker=dict(size=12, color="#FFB950"),
+            showlegend=False
+        )
+    )
+
+fig.add_annotation(
+    x="2025-07-08",
+    y=26,
+    text="peak days: July the 7, 8 and 9th",
+    showarrow=False,          # 👈 sin flecha
+    font=dict(size=12, color="orange"),
+    bgcolor="white",
+    bordercolor="orange"
+)
+
+#vamos a crear un pie chart como snapshot de los dias del pico
+df_days = df_quality_int[
+    (df_quality_int['Created_str'] == '2025-07-07') |
+    (df_quality_int['Created_str'] == '2025-08-07') |
+    (df_quality_int['Created_str'] == '2025-09-07')
+]
+pie_counts = df_days.groupby('PH1_reference_$startups').size().reset_index(name='count')
+
+pie = px.pie(
+    pie_counts,
+    names='PH1_reference_$startups',
+    values='count',
+    title='Reference for peak: July the 7, 8 and 9th',
+    color_discrete_sequence=colors
+)
+pie.update_layout(
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)'
+)
+
+#exportamos el pie a una imagen en memoria
+png_bytes = pie.to_image(format='png', scale=2)
+pie_img = Image.open(io.BytesIO(png_bytes))
+
+#incrustamos el pie en la grafica
+fig.add_layout_image(
+    dict(
+        source=pie_img,
+        xref='paper', yref='paper',
+        x=0.35, y=-0.3,
+        xanchor='left', yanchor='bottom',
+        sizex=2, sizey=2,
+        sizing='contain',
+        layer='above',
+        opacity=0.95
+    )
 )
 
 st.plotly_chart(fig)
