@@ -209,6 +209,9 @@ funnel_count = (
     )
 )
 
+#hay que pasar los tiers al status para el funnel
+funnel_count.loc[funnel_count['Tier_Class'].isin(['Tier 1', 'Tier 2+']), 'Status'] = 'Tier 1 or 2+'
+
 funnel_count = (
     funnel_count.groupby('Status')['Status']
     .value_counts()
