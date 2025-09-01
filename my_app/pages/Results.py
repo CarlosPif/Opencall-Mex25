@@ -218,6 +218,9 @@ funnel_count = (
     .reset_index(name='count')
 )
 
+#vamos a sumarles los de gust y f6s (manual)
+funnel_count.loc['Phase 1', 'count'] += 470
+
 funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
 funnel_count['pct_conv'] = funnel_count['count'].pct_change()
 funnel_count['pct_conv'] = funnel_count['pct_conv'].apply(lambda x: f"{(1 + x)*100:.2f}%" if pd.notnull(x) else "")
@@ -626,10 +629,10 @@ fig.add_annotation(
     x="2025-07-08",
     y=26,
     text="peak days: July the 7, 8 and 9th",
-    showarrow=False,          # 👈 sin flecha
-    font=dict(size=12, color="orange"),
+    showarrow=False,
+    font=dict(size=12, color="black"),
     bgcolor="white",
-    bordercolor="orange"
+    bordercolor="black"
 )
 
 #vamos a crear un pie chart como snapshot de los dias del pico
