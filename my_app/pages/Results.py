@@ -94,7 +94,10 @@ pending_judge = (df[
     (df['Status'] == 'PH4_Pending_Judge_Assignment') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Team_Call')
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BBD') |
+    (df['Status'] == 'PH5_Pending_HD') |
+    (df['Status'] == 'PH5_Calls_Done')
     ].shape[0])
 
 #contamos cuantos han pasado a team evaluation
@@ -106,7 +109,10 @@ ph2 = df[
     (df['Status'] == 'PH3_Internal_Evaluation') |
     (df['Status'] == 'PH3_Waiting_List') |
     (df['Status'] == 'PH4_Rejected') |
-    (df['Status'] == 'PH5_Team_Call')
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BBD') |
+    (df['Status'] == 'PH5_Pending_HD') |
+    (df['Status'] == 'PH5_Calls_Done')    
     ].shape[0]
 
 #porcentaje de exito en la team evaluation
@@ -120,8 +126,10 @@ judges = df[
     (df['Status'] == 'PH4_Pending_Judge_Assignment') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Team_Call')
-].shape[0]
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BBD') |
+    (df['Status'] == 'PH5_Pending_HD') |
+    (df['Status'] == 'PH5_Calls_Done')].shape[0]
 
 ph5_pct = round(ph5 / judges * 100, 2)
 
@@ -203,8 +211,10 @@ funnel_count = (
             'PH1_To_Be_Rejected_Reviewed': 'Phase 1',
             'PH4_Waiting_List': 'Phase 4 (Judge Evaluation)',
             'PH4_Rejected': 'Phase 4 (Judge Evaluation)',
-            'PH5_Team_Call': 'Phase 5 (Team Call)',
-            'PH5_Calls_Done': 'Phase 5 (Team Call)'
+            'PH5_Calls_Done': 'Phase 5 (Team Call)',
+            'PH5_Pending_BDD': 'Phase 5 (Team Call)',
+            'PH5_Pending_HDD': 'Phase 5 (Team Call)',
+            'PH5_Pending_Team_Calls': 'Phase 5 (Team Call)'
         }
     )
 )
@@ -688,7 +698,10 @@ st.plotly_chart(fig)
 df_quality_judge = df[
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Team_Call')
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BDD') |
+    (df['Status'] == 'PH5_Pending_HDD') |
+    (df['Status'] == 'PH5_Calls_Done')
 ]
 
 df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).agg(
