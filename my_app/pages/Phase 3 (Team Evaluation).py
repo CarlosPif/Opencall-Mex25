@@ -87,11 +87,15 @@ st.plotly_chart(fig)
 #grafica de calidad a lo largo del tiempo
 #nos quedamos con los que han pasado
 df_quality_int = df[
-    (df['Status'] == 'Ph3_Waiting_List') |
+    (df['Status'] == 'PH3_Waiting_List') |
     (df['Status'] == 'PH3_To_Be_Rejected') |
+    (df['Status'] == 'PH3_Rejected') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Team_Call')
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BDD') |
+    (df['Status'] == 'PH5_Pending_HDD') |
+    (df['Status'] == 'PH5_Calls_Done')
 ]
 
 #sacamos la media por cada dia
