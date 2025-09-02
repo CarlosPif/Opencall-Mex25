@@ -6,11 +6,6 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import plotly.express as px
-import requests
-import io
-from plotly.subplots import make_subplots
-import plotly.io as pio
-from PIL import Image
 
 # Configuracion de AirTable
 api_key = st.secrets["airtable"]["api_key"]
@@ -98,7 +93,7 @@ df_quality_judge = df[
     (df['Status'] == 'PH5_Pending_BDD') |
     (df['Status'] == 'PH5_Pending_HDD') |
     (df['Status'] == 'PH5_Calls_Done')
-]
+].dropna(subset='Judges_Average')
 
 df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).agg(
     average=('Judges_Average', 'mean'),
