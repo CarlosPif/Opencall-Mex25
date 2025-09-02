@@ -51,7 +51,7 @@ df_j = df.dropna(subset=['Judges_Average'])
 
 evaluation_ph4 = list(
     df_j[
-        (df['Judges_Average'] != 0)
+        (df_j['Judges_Average'] != 0)
     ]['Judges_Average']
 )
 
