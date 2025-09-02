@@ -94,7 +94,10 @@ st.plotly_chart(fig)
 df_quality_judge = df[
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Team_Call')
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BDD') |
+    (df['Status'] == 'PH5_Pending_HDD') |
+    (df['Status'] == 'PH5_Calls_Done')
 ]
 
 df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).agg(
