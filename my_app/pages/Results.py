@@ -219,7 +219,7 @@ funnel_count = (
 )
 
 #vamos a sumarles los de gust y f6s (manual)
-funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 478
+#funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 478
 
 funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
 funnel_count['pct_conv'] = funnel_count['count'].pct_change()
