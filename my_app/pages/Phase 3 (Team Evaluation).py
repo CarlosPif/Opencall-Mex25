@@ -84,6 +84,41 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+#grafica de calidad a lo largo del tiempo
+#nos quedamos con los que han pasado
+df_quality_int = df[
+    (df['Status'] == 'Ph3_Waiting_List') |
+    (df['Status'] == 'PH3_To_Be_Rejected') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Team_Call')
+]
+
+#sacamos la media por cada dia
+df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score', 'mean'),
+    count=('PH3_Final_Score', 'count'),
+    acum=('PH3_Final_Score', 'sum')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+df_quality_int_agg['acum'] = df_quality_int_agg['acum'].cumsum()
+df_quality_int_agg['derivative'] = df_quality_int_agg['acum'].diff()
+
+#y graficamos
+fig = px.line(
+    df_quality_int_agg,
+    x='Created_str',
+    y='derivative',
+    title='Startups quality over time (Team Evaluation) variation rate',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+st.plotly_chart(fig)
+
 #vamos a poner una tabla interactiva con los 10 mejores
 st.markdown("Top 10 Startups Internal Evaluation")
 
