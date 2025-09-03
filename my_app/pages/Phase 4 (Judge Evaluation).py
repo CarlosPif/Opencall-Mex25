@@ -40,7 +40,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025<br><br></h1>**", unsafe_allow_html=True)
+st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025<br><br>Phase 4 (Judge Evaluation)</h1>**", unsafe_allow_html=True)
 
 df_j = df.dropna(subset=['Judges_Average'])
 
