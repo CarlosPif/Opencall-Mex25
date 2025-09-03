@@ -7,10 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.stats import gaussian_kde
 import plotly.express as px
 import requests
-import io
-from plotly.subplots import make_subplots
-import plotly.io as pio
-from PIL import Image
 
 # Configuracion de AirTable
 api_key = st.secrets["airtable"]["api_key"]
@@ -88,108 +84,6 @@ st.set_page_config(
 
 st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h1>**", unsafe_allow_html=True)
 
-#================================Tablita con resultados generales=========================================
-#Todos los que han sido evaluados POR EL team ya (los de Pending )
-pending_judge = (df[
-    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df['Status'] == 'PH4_Judge_Evaluation') |
-    (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Pending_Team_Calls') |
-    (df['Status'] == 'PH5_Pending_BBD') |
-    (df['Status'] == 'PH5_Pending_HD') |
-    (df['Status'] == 'PH5_Calls_Done')
-    ].shape[0])
-
-#contamos cuantos han pasado a team evaluation
-ph2 = df[
-    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df['Status'] == 'PH4_Judge_Evaluation') | 
-    (df['Status'] == 'PH3_Rejected') | 
-    (df['Status'] == 'PH3_To_Be_Rejected') | 
-    (df['Status'] == 'PH3_Internal_Evaluation') |
-    (df['Status'] == 'PH3_Waiting_List') |
-    (df['Status'] == 'PH4_Rejected') |
-    (df['Status'] == 'PH5_Pending_Team_Calls') |
-    (df['Status'] == 'PH5_Pending_BBD') |
-    (df['Status'] == 'PH5_Pending_HD') |
-    (df['Status'] == 'PH5_Calls_Done')    
-    ].shape[0]
-
-#porcentaje de exito en la team evaluation
-succ_pct = round(pending_judge / ph2 * 100, 2)
-
-#Vamos a contar cuantos hay en fase 5
-ph5 = df[df['Status'] == 'PH5_Team_Call'].shape[0]
-
-#cuantas llegaron a jueces
-judges = df[
-    (df['Status'] == 'PH4_Pending_Judge_Assignment') |
-    (df['Status'] == 'PH4_Judge_Evaluation') |
-    (df['Status'] == 'PH4_Waiting_List') |
-    (df['Status'] == 'PH5_Pending_Team_Calls') |
-    (df['Status'] == 'PH5_Pending_BBD') |
-    (df['Status'] == 'PH5_Pending_HD') |
-    (df['Status'] == 'PH5_Calls_Done')].shape[0]
-
-ph5_pct = round(ph5 / judges * 100, 2)
-
-st.markdown(f"""
-<style>
-.dashboard-row{{
-  display:flex;
-  gap:1rem;
-  justify-content:center;
-  margin-bottom:1rem;
-  font-family:"Segoe UI",sans-serif;
-}}
-.big-card{{
-  flex:1 1 0;
-  background:#ffffff;
-  border-radius:12px;
-  padding:1rem;
-  box-shadow:0 1px 6px rgba(0,0,0,.08);
-  color:#000;
-  text-align:center;
-}}
-.metric-main-num{{font-size:36px;margin:0;}}
-.metric-main-label{{margin-top:2px;font-size:14px;font-weight:600;
-                    border-bottom:2px solid #000;display:inline-block;padding-bottom:3px;}}
-.sub-row{{display:flex;gap:0.6rem;justify-content:center;margin-top:0.8rem;}}
-.metric-box{{
-  background:#1FD0EF;border-radius:8px;padding:10px 0 12px;
-  box-shadow:0 1px 3px rgba(0,0,0,.05);border-bottom:2px solid #5aa5c8;
-  color:#000;flex:1 1 0;
-}}
-.metric-value{{font-size:18px;font-weight:600;margin:0;}}
-.metric-label{{margin-top:2px;font-size:14px;letter-spacing:.3px;}}
-</style>
-
-<div class="dashboard-row">
-
-  <div class="big-card">
-    <div class="metric-main-num">{pending_judge}</div>
-    <div class="metric-main-label">Total number of companies currently in judge evaluations</div>
-    <div class="sub-row">
-      <div class="metric-box"><div class="metric-value">{ph2}</div>
-                               <div class="metric-label">Number of companies that got to internal evaluation</div></div>
-      <div class="metric-box"><div class="metric-value">{succ_pct}%</div>
-                               <div class="metric-label">Percentage of success in Internal Evaluation</div></div>
-    </div>
-  </div>
-  <div class="big-card">
-    <div class="metric-main-num">{ph5}</div>
-    <div class="metric-main-label">Total number of companies currently in Team Call</div>
-    <div class="sub-row">
-      <div class="metric-box"><div class="metric-value">{judges}</div>
-                               <div class="metric-label">Number of companies that got to Judges Evaluation</div></div>
-      <div class="metric-box"><div class="metric-value">{ph5_pct}%</div>
-                               <div class="metric-label">Percentage of success in Judge Evaluation</div></div>
-    </div>
-  </div>
-
-</div>
-""", unsafe_allow_html=True)
-
 #=================Vamos a hacer un funnel================
 total = df.shape[0] 
 
@@ -219,9 +113,6 @@ funnel_count = (
     )
 )
 
-#hay que pasar los tiers al status para el funnel
-funnel_count.loc[funnel_count['Tier_Class'].isin(['Tier 1', 'Tier 2+']), 'Status'] = 'Tier 1 or 2+'
-
 funnel_count = (
     funnel_count.groupby('Status')['Status']
     .value_counts()
@@ -229,7 +120,7 @@ funnel_count = (
 )
 
 #vamos a sumarles los de gust y f6s (manual)
-#funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 478
+funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 478
 
 funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
 funnel_count['pct_conv'] = funnel_count['count'].pct_change()
@@ -257,6 +148,7 @@ fig.add_traces(go.Funnel(
 
 fig.update_layout(
     title='Selection process funnel with conversion rates',
+    title_x=0.5,
     yaxis=dict(
         tickfont=dict(color='black')
     )
@@ -331,7 +223,11 @@ ph3_passed = ph3_df[
     (ph3_df['Status'] == 'PH4_Judge_Evaluation') |
     (ph3_df['Status'] == 'PH4_Waiting_List') |
     (ph3_df['Status'] == 'PH4_Rejected') |
-    (ph3_df['Status'] == 'PH5_Team_Call')
+    (ph3_df['Status'] == 'PH5_Pending_Team_Calls') |
+    (ph3_df['Status'] == 'PH5_Pending_BDD') |
+    (ph3_df['Status'] == 'PH5_Pending_HDD') |
+    (ph3_df['Status'] == 'PH5_Calls_Done')
+
 ].shape[0]
 
 #vamos con los de la fase 4
@@ -352,7 +248,10 @@ ph4_waiting_list = df_4[
 ].shape[0]
 
 ph4_passed = df_4[
-    df_4['Status'] == 'PH5_Team_Call'
+    (df_4['Status'] == 'PH5_Pending_Team_Calls') |
+    (df_4['Status'] == 'PH5_Pending_HDD') |
+    (df_4['Status'] == 'PH5_Pending_BDD') |
+    (df_4['Status'] == 'PH5_Calls_Done') 
 ].shape[0]
 
 with cols[1]:
@@ -473,7 +372,8 @@ with cols[1]:
     </table>
     """, unsafe_allow_html=True)
 
-#=====================Barras con cuantas aplicaciones hay en cada fase==============================
+#=====================Barras con cuantas aplicaciones hay en cada fase=============================
+
 df_phase = (
     df.replace(
         {
@@ -583,6 +483,50 @@ fig.update_layout(
         title=dict(text='Number of companies', font=dict(color='black')),
         tickfont=dict(color='black'),
     )
+)
+
+st.plotly_chart(fig)
+
+df_quality_int = df[
+    (df['Status'] == 'PH3_Waiting_List') |
+    (df['Status'] == 'PH3_Rejected') |
+    (df['Status'] == 'PH3_Internal_Evaluation') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BDD') |
+    (df['Status'] == 'PH5_Pending_HDD') |
+    (df['Status'] == 'PH5_Calls_Done')
+].dropna(subset='PH3_Final_Score')
+
+df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score', 'mean'),
+    count=('PH3_Final_Score', 'count'),
+    acum=('PH3_Final_Score', 'sum')
+)
+
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+#y graficamos
+fig = px.line(
+    df_quality_int_agg,
+    x='Created_str',
+    y='average',
+    title='Startups quality over time (Internal Evaluation)',
+    markers=True,
+    line_shape='spline',
+    hover_data={'count': True},
+    color_discrete_sequence=['#1FD0EF']
+)
+
+mean_value = df_quality_int_agg['average'].mean()
+
+fig.add_hline(
+    y=mean_value,
+    line_color='#FFB950',
+    line_dash='dash',
+    annotation_text=f"mean: {mean_value:.2f}",
+    annotation_position='top left'
 )
 
 st.plotly_chart(fig)
@@ -702,7 +646,7 @@ df_quality_judge = df[
     (df['Status'] == 'PH5_Pending_BDD') |
     (df['Status'] == 'PH5_Pending_HDD') |
     (df['Status'] == 'PH5_Calls_Done')
-]
+].dropna(subset='Judges_Average')
 
 df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).agg(
     average=('Judges_Average', 'mean'),
@@ -711,8 +655,6 @@ df_quality_judge_agg = df_quality_judge.groupby('Created_str', as_index=False).a
 )
 
 df_quality_judge_agg = df_quality_judge_agg.sort_values('Created_str')
-df_quality_judge_agg['acum'] = df_quality_judge_agg['acum'].cumsum()
-df_quality_judge_agg['derivative'] = df_quality_judge_agg['acum'].diff()
 
 #y graficamos
 fig = px.line(
@@ -734,19 +676,6 @@ fig.add_hline(
     line_dash='dash',
     annotation_text=f"mean: {mean_value:.2f}",
     annotation_position='top left'
-)
-
-st.plotly_chart(fig)
-
-fig = px.line(
-    df_quality_judge_agg,
-    x='Created_str',
-    y='derivative',
-    title='Startups quality over time (Judge Evaluation) variation rate',
-    markers=True,
-    line_shape='spline',
-    hover_data={'count': True},
-    color_discrete_sequence=['#1FD0EF']
 )
 
 st.plotly_chart(fig)
@@ -838,8 +767,6 @@ df_quality_agg = df_quality.groupby('Created_str', as_index=False).agg(
 )
 
 df_quality_agg = df_quality_agg.sort_values('Created_str')
-df_quality_agg['acum'] = df_quality_agg['acum'].cumsum()
-df_quality_agg['derivative'] = df_quality_agg['acum'].diff()
 
 #graficamos por dias
 fig = px.line(
@@ -861,19 +788,6 @@ fig.add_hline(
     line_dash='dash',
     annotation_text=f"mean: {mean_value:.2f}",
     annotation_position='top left'
-)
-
-st.plotly_chart(fig)
-
-fig = px.line(
-    df_quality_agg,
-    x='Created_str',
-    y='derivative',
-    title='Startups quality over time (Judges and Team evaluations) variation rate',
-    markers=True,
-    line_shape='spline',
-    hover_data={'count': True},
-    color_discrete_sequence=['#1FD0EF']
 )
 
 st.plotly_chart(fig)
