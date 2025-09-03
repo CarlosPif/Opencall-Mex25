@@ -45,7 +45,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025<br>Phase 3 (Team Evaluation)</h1>**", unsafe_allow_html=True)
+st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025<br><br>Phase 3 (Team Evaluation)</h1>**", unsafe_allow_html=True)
 
 evaluation = list(df[df['PH3_Final_Score'] != 0].dropna(subset='PH3_Final_Score')['PH3_Final_Score'])
 
@@ -201,6 +201,10 @@ fig.add_hline(
     line_dash='dash',
     annotation_text=f"mean: {mean_value:.2f}",
     annotation_position='top left'
+)
+
+fig.update_layout(
+    title='Startups quality over time'
 )
 
 st.plotly_chart(fig)
