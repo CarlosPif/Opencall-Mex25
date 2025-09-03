@@ -45,9 +45,9 @@ st.set_page_config(
     layout="wide"
 )
 
-st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h1>**", unsafe_allow_html=True)
+st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025<br>Phase 3 (Team Evaluation)</h1>**", unsafe_allow_html=True)
 
-evaluation = list(df[df['PH3_Final_Score'] != 0]['PH3_Final_Score'])
+evaluation = list(df[df['PH3_Final_Score'] != 0].dropna(subset='PH3_Final_Score')['PH3_Final_Score'])
 
 kde = gaussian_kde(evaluation)
 x_t = np.linspace(min(evaluation), max(evaluation), 200)
@@ -88,37 +88,119 @@ st.plotly_chart(fig)
 #nos quedamos con los que han pasado
 df_quality_int = df[
     (df['Status'] == 'PH3_Waiting_List') |
-    (df['Status'] == 'PH3_To_Be_Rejected') |
     (df['Status'] == 'PH3_Rejected') |
+    (df['Status'] == 'PH3_Internal_Evaluation') |
     (df['Status'] == 'PH4_Judge_Evaluation') |
     (df['Status'] == 'PH4_Waiting_List') |
     (df['Status'] == 'PH5_Pending_Team_Calls') |
     (df['Status'] == 'PH5_Pending_BDD') |
     (df['Status'] == 'PH5_Pending_HDD') |
     (df['Status'] == 'PH5_Calls_Done')
-]
+].dropna(subset='PH3_Final_Score')
 
-#sacamos la media por cada dia
+fig = go.Figure()
+
+def add_source_trace(fig, df_src, name, color, legendonly=True):
+    fig.add_trace(go.Scatter(
+        x=df_src['Created_str'],
+        y=df_src['average'],
+        mode='lines+markers',
+        name=name,
+        visible=('legendonly' if legendonly else True),
+        line_shape='spline',
+        line=dict(color=color)
+    ))
+
 df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score', 'mean'),
-    count=('PH3_Final_Score', 'count'),
-    acum=('PH3_Final_Score', 'sum')
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+mean_value = df_quality_int_agg['average'].mean()
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
+    'All',
+    colors[0],
+    legendonly=False
+)
+
+df_quality_int_agg = df_quality_int[(df_quality_int['PH1_reference_$startups'] == 'Referral') | (df_quality_int['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)")]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
-df_quality_int_agg['acum'] = df_quality_int_agg['acum'].cumsum()
-df_quality_int_agg['derivative'] = df_quality_int_agg['acum'].diff()
-
-#y graficamos
-fig = px.line(
+add_source_trace(
+    fig,
     df_quality_int_agg,
-    x='Created_str',
-    y='derivative',
-    title='Startups quality over time (Team Evaluation) variation rate',
-    markers=True,
-    line_shape='spline',
-    hover_data={'count': True},
-    color_discrete_sequence=['#1FD0EF']
+    'Referral',
+    colors[1]
+)
+
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == 'LinkedIn']
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
+    'LinkedIn',
+    'blue'
+)
+
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's team reached out by email"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
+    "Decelera's team reached out by email",
+    colors[3]
+)
+
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's newsletter"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
+    "Decelera's newsletter",
+    colors[4]
+)
+
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's website"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
+    "Decelera's website",
+    'black'
+)
+
+fig.add_hline(
+    y=mean_value,
+    line_color='black',
+    line_dash='dash',
+    annotation_text=f"mean: {mean_value:.2f}",
+    annotation_position='top left'
 )
 
 st.plotly_chart(fig)
