@@ -863,69 +863,127 @@ df_quality_agg['PH1_reference_$startups'] = df['PH1_reference_$startups']
 
 #graficamos por dias
 
+df_quality_int = df[
+    (df['Status'] == 'PH3_Waiting_List') |
+    (df['Status'] == 'PH3_Rejected') |
+    (df['Status'] == 'PH3_Internal_Evaluation') |
+    (df['Status'] == 'PH4_Judge_Evaluation') |
+    (df['Status'] == 'PH4_Waiting_List') |
+    (df['Status'] == 'PH5_Pending_Team_Calls') |
+    (df['Status'] == 'PH5_Pending_BDD') |
+    (df['Status'] == 'PH5_Pending_HDD') |
+    (df['Status'] == 'PH5_Calls_Done')
+].dropna(subset=['PH3_Final_Score', 'Judges_Average'])
+
+df_quality_int['Score'] = (df_quality_int['PH3_Final_Score'] + df_quality_int['Judges_Average']) / 2
+
 fig = go.Figure()
 
-def add_source_trace(fig, df_src, name, color):
+def add_source_trace(fig, df_src, name, color, legendonly=True):
     fig.add_trace(go.Scatter(
         x=df_src['Created_str'],
         y=df_src['average'],
         mode='lines+markers',
         name=name,
-        visible='legendonly',
+        visible=('legendonly' if legendonly else True),
         line_shape='spline',
         line=dict(color=color)
     ))
 
-add_source_trace(
-    fig,
-    df_quality_agg,
-    'All',
-    colors[0]
+df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
+    average=('Score','mean')
 )
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+mean_value = df_quality_int_agg['average'].mean()
 
 add_source_trace(
     fig,
-    df_quality_agg[(df_quality_agg['PH1_reference_$startups'] == 'Referral') | (df_quality_agg['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)")],
+    df_quality_int_agg,
+    'All',
+    colors[0],
+    legendonly=False
+)
+
+df_quality_int_agg = df_quality_int[(df_quality_int['PH1_reference_$startups'] == 'Referral') | (df_quality_int['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)")]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
+add_source_trace(
+    fig,
+    df_quality_int_agg,
     'Referral',
     colors[1]
 )
 
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == 'LinkedIn']
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
 add_source_trace(
     fig,
-    df_quality_agg[df_quality_agg['PH1_reference_$startups'] == 'LinkedIn'],
+    df_quality_int_agg,
     'LinkedIn',
     'blue'
 )
 
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's team reached out by email"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
 add_source_trace(
     fig,
-    df_quality_agg[df_quality_agg['PH1_reference_$startups'] == "Decelera's team reached out by email"],
+    df_quality_int_agg,
     "Decelera's team reached out by email",
     colors[3]
 )
 
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's newsletter"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
 add_source_trace(
     fig,
-    df_quality_agg[df_quality_agg['PH1_reference_$startups'] == "Decelera's newsletter"],
+    df_quality_int_agg,
     "Decelera's newsletter",
     colors[4]
 )
 
+df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's website"]
+
+df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
+    average=('PH3_Final_Score','mean')
+)
+df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
+
 add_source_trace(
     fig,
-    df_quality_agg[df_quality_agg['PH1_reference_$startups'] == "Decelera's website"],
+    df_quality_int_agg,
     "Decelera's website",
     'black'
 )
 
-mean_value = df_quality_agg['average'].mean()
-
 fig.add_hline(
     y=mean_value,
-    line_color='#FFB950',
+    line_color='black',
     line_dash='dash',
     annotation_text=f"mean: {mean_value:.2f}",
     annotation_position='top left'
+)
+
+fig.update_layout(
+    title='Startups quality over time'
 )
 
 st.plotly_chart(fig)
