@@ -2,7 +2,6 @@ from pyairtable import Api
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import numpy as np
 import plotly.graph_objects as go
 from collections import Counter
 import requests
@@ -229,9 +228,76 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
-st.markdown("Below a temporal analysis of the number of applications submitted and times a bitly link has been clicked")
+#===================================FUnnel==================================
+total = df.shape[0] 
 
+funnel_count = (
+    df.replace(
+        {
+            'PH1_To_Be_Rejected': 'Phase 1',
+            'PH1_Rejected': 'Phase 1',
+            'PH1_Review': 'Phase 1',
+            'PH1_Pending_Send_Magic_Link': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH1_Magic_Link_Sent': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH1_Rejected_Review': 'Phase 1',
+            'PH3_Internal_Evaluation': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH3_To_Be_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH3_Rejected': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH4_Pending_Judge_Assignment': 'Phase 4 (Judge Evaluation)',
+            'PH4_Judge_Evaluation': 'Phase 4 (Judge Evaluation)',
+            'PH3_Waiting_List': 'Phase 2 & 3 (Internal Evaluation)',
+            'PH1_To_Be_Rejected_Reviewed': 'Phase 1',
+            'PH4_Waiting_List': 'Phase 4 (Judge Evaluation)',
+            'PH4_Rejected': 'Phase 4 (Judge Evaluation)',
+            'PH5_Calls_Done': 'Phase 5 (Team Call)',
+            'PH5_Pending_BDD': 'Phase 5 (Team Call)',
+            'PH5_Pending_HDD': 'Phase 5 (Team Call)',
+            'PH5_Pending_Team_Calls': 'Phase 5 (Team Call)'
+        }
+    )
+)
+
+funnel_count = (
+    funnel_count.groupby('Status')['Status']
+    .value_counts()
+    .reset_index(name='count')
+)
+
+funnel_count['count'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
+funnel_count['pct_conv'] = funnel_count['count'].pct_change()
+funnel_count['pct_conv'] = funnel_count['pct_conv'].apply(lambda x: f"{(1 + x)*100:.2f}%" if pd.notnull(x) else "")
+funnel_count['label'] = funnel_count.apply(
+    lambda row: f"{row['count']} ({row['pct_conv']})" if row['pct_conv'] else f"{row['count']}", axis=1
+)
+
+fig = go.Figure()
+
+fig.add_traces(go.Funnel(
+    x=funnel_count['count'],
+    y=funnel_count['Status'],
+    text=funnel_count['label'],
+    textinfo="text",
+    marker=dict(
+        color = colors,
+        line=dict(
+            color='black',
+            width=1.5
+        )
+    ),
+    textfont=dict(color='black')
+))
+
+fig.update_layout(
+    title='Selection process funnel with conversion rates',
+    yaxis=dict(
+        tickfont=dict(color='black')
+    )
+)
+
+st.plotly_chart(fig)
+
+st.markdown("**<h2>Temporal Follow Up</h2>**", unsafe_allow_html=True)
+st.markdown("Below a temporal analysis of the number of applications submitted")
 #======Aplicaciones por dia===========================
 # Definir el inicio de campaña para cada dataset
 inicio_2025 = pd.to_datetime("25-06-2025")
@@ -297,264 +363,71 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
-#Referencias de las aplicaciones=============================================
 
-reference_data = df['PH1_reference_$startups'].replace(
-{"Referral from within Decelera's community (who?, please specify)": "Referral"}
-)
-reference_count = reference_data.value_counts().reset_index(name='count')
+#acumulado-------------------------------------------------------------------------
 
-total = reference_count['count'].sum()
-reference_count['pct'] = (reference_count['count'] / total * 100).round(1)
-reference_count['text'] = reference_count['count'].astype(str) + "(" + reference_count['pct'].astype(str) + "%)"
+inicio_2025 = pd.to_datetime("2025-06-25")
+inicio_2024 = pd.to_datetime("2024-06-20")
 
+# Preparamos los datos de 2025
+df['Fecha'] = pd.to_datetime(df['Created']).dt.date
+df_evolucion_25 = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
+df_evolucion_25 = df_evolucion_25.sort_values('Fecha')
+df_evolucion_25['Acumulado'] = df_evolucion_25['Aplicaciones'].cumsum()
+
+# Preparamos los datos de 2024
+df_24['Fecha_real'] = pd.to_datetime(df_24['Created']).dt.date
+df_24['Fecha'] = df_24['Fecha_real'] + (inicio_2025.date() - inicio_2024.date())
+
+df_evolucion_24 = df_24.groupby('Fecha').size().reset_index(name='Aplicaciones')
+df_evolucion_24 = df_evolucion_24.sort_values('Fecha')
+df_evolucion_24['Acumulado'] = df_evolucion_24['Aplicaciones'].cumsum()
+
+hoy = pd.Timestamp.today().date()
+
+# Filtrar acumulado de 2025 solo hasta hoy
+df_evolucion_25_filtrado = df_evolucion_25[df_evolucion_25['Fecha'] <= hoy]
+
+# Obtener valor máximo
+max_acumulado_hoy = df_evolucion_25_filtrado['Acumulado'].max()
+limite_superior_y = max_acumulado_hoy + 50
+# Gráfico combinado
 fig = go.Figure()
 
-for i, row in reference_count.iterrows():
-    fig.add_shape(
-        type="line",
-        x0=row['PH1_reference_$startups'], x1=row['PH1_reference_$startups'],
-        y0=0, y1=row['count'],
-        xref='x', yref='y',
-        line=dict(color='#1FD0EF', width=2)
-    )
-
-
-# Punto (la piruleta)
+# Línea azul celeste - 2025
 fig.add_trace(go.Scatter(
-    x=reference_count['PH1_reference_$startups'],
-    y=reference_count['count'],
-    mode='markers+text',
-    marker=dict(color='#1FD0EF', size=20, line=dict(color='white', width=1)),
-    text=reference_count['text'],
-    textposition='top center',
-    textfont=dict(color='black'),
-    name='Total Clicks'
+    x=df_evolucion_25['Fecha'],
+    y=df_evolucion_25['Acumulado'],
+    mode='lines+markers',
+    name='2025 Accumulated',
+    line=dict(color='#1FD0EF', shape='spline', width=3),
+    fill='tozeroy',
+    fillcolor='rgba(31, 208, 239, 0.2)'
 ))
 
+# Línea naranja - 2024
+fig.add_trace(go.Scatter(
+    x=df_evolucion_24['Fecha'],
+    y=df_evolucion_24['Acumulado'],
+    mode='lines+markers',
+    name='2024 Accumulated',
+    line=dict(color='#FFB950', shape='spline', width=3)
+))
+
+# Diseño
 fig.update_layout(
-    title='Application references',
-    xaxis_title='',
-    xaxis=dict(
-        tickfont=dict(color='black')
-    ),
-    title_x=0.4,
-    yaxis_title='Amount of applications',
+    title="Applications Time Evolution - 2025 vs 2024",
+    xaxis_title='Date',
+    yaxis_title='Applications',
     template='plotly_white',
-    height=600,
-    showlegend=False
+    title_font=dict(size=24, color='black'),
+    title_x=0.3,
+    xaxis_range=[df_evolucion_25['Fecha'].min(), hoy],
+     yaxis_range=[0, limite_superior_y]
 )
 
+# Mostrar gráfico
 st.plotly_chart(fig)
-
-#==================Desglose de references y referrals=======================
-# ── Conteo de cada valor en Source_leads ─────────────────────────
-cols = st.columns(2)
-
-with cols[0]:
-    source_count = (
-        df_df['Source_leads']             
-            .fillna('Sin fuente')            
-            .value_counts()
-            .reset_index(name='count')
-    )
-
-    source_count = source_count[~source_count['Source_leads'].isin(['Sin fuente', "Didn't specify"])]
-
-    fig = px.pie(
-        source_count,
-        names='Source_leads',
-        values='count',
-        title='Referrals Source Mexico 2025',
-        hole=0.35,
-        color_discrete_sequence=colors           
-    )
-
-    fig.update_layout(
-        legend=dict(
-        orientation='h',
-        y=-0.20,
-        x=0.5,
-        xanchor='center',
-        font=dict(size=11)
-        ),
-        margin=dict(t=90, b=120),
-        title_x = 0.35
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-with cols[1]:
-    df_ref = (
-        df_df[df_df['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)"]
-        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
-        .assign(semana=lambda d: ((d['fecha'] - pd.Timestamp("2025-06-25")).dt.days // 7) + 1)
-        .groupby('semana', as_index=False)
-        .size()
-        .rename(columns={'size': 'count'})
-    )
-
-    df_ref_ld = (
-        df_ld[df_ld['Applied'] == False]
-        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
-        .assign(semana=lambda d: ((d['fecha'] - pd.Timestamp("2025-06-25")).dt.days // 7) + 1)
-        .groupby('semana', as_index=False)
-        .size()
-        .rename(columns={'size': 'count'})
-    )
-
-    df_total = pd.merge(df_ref, df_ref_ld, on='semana', how='outer').fillna(0)
-    df_total['count'] = df_total['count_x'] + df_total['count_y']
-    df_total = df_total[['semana', 'count']].sort_values('semana')
-
-    objetivos_dict = {1: 25, 2: 50, 3: 50, 4: 50, 5: 35, 6: 20, 7: 7, 8: 6, 9: 5, 10: 2}
-    df_obj = pd.DataFrame({'semana': list(objetivos_dict.keys()), 'objetivo': list(objetivos_dict.values())})
-
-    df_total = pd.merge(df_obj, df_total, on='semana', how='left').fillna({'count': 0})
-    df_total['count'] = df_total['count'].astype(int)
-    total_ref = df_total['count'].sum()
-
-    fig = go.Figure()
-
-    # Barra de referrals reales
-    fig.add_trace(go.Bar(
-        x=df_total['semana'],
-        y=df_total['count'],
-        name="Referrals",
-        text=df_total['count'],
-        textposition='outside',
-        textfont=dict(color='black'),
-        marker=dict(
-            color="#1FD0EF",
-            line=dict(color="black", width=1.5),
-        ),
-        cliponaxis=False
-    ))
-
-    # Barra de objetivos
-    fig.add_trace(go.Bar(
-        x=df_total['semana'],
-        y=df_total['objetivo'],
-        name="Objetivo",
-        text=df_total['objetivo'],
-        textposition='outside',
-        textfont=dict(color='black'),
-        marker=dict(
-            color='rgba(0,0,0,0)',
-            line=dict(
-                color='#AAAAAA',
-                width=2
-            )
-        ),
-        opacity=0.5,
-        cliponaxis=False
-    ))
-
-    fig.update_layout(
-        barmode='overlay',
-        title=f"Referrals Mexico 2025 per week. Total: {total_ref}",
-        xaxis=dict(
-            range=[0.5,16],
-            title='Week'
-        ),
-        legend=dict(
-            x=0.99,            
-            y=0.99,           
-            xanchor="right",  
-            yanchor="top",
-            orientation="v",  
-            bgcolor="rgba(255,255,255,0.5)",
-            bordercolor="black",
-            borderwidth=1
-        ),
-        bargap=0.15,
-        yaxis_title="Number of Referrals",
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-
-    st.plotly_chart(fig)
-
-
-cols = st.columns(2)
-
-with cols[0]:
-    conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
-
-    total_global = conteo_refs['count'].sum()
-    conteo_refs['pct'] = conteo_refs['count'] / total_global * 100
-
-    conteo_refs['PH1_reference_$startups'] = conteo_refs.apply(
-        lambda row: 'Others' if row['pct'] < 2 else row['PH1_reference_$startups'],
-        axis=1
-    )
-
-    referral_pct = conteo_refs.loc[
-        conteo_refs['PH1_reference_$startups'] == 'Referral', 'pct'
-        ].iloc[0]
-
-    conteo_refs = (
-        conteo_refs
-        .groupby('PH1_reference_$startups', as_index=False)['count']
-        .sum()
-    )
-
-    fig = px.pie(conteo_refs, names="PH1_reference_$startups", values="count",
-                    title="Mexico 2024 References", color_discrete_sequence=colors)
-        
-    fig.update_layout(
-        legend=dict(
-        orientation='h',
-        y=-0.20,
-        x=0.5,
-        xanchor='center',
-        font=dict(size=11)
-        ),
-        margin=dict(t=90, b=120),
-        title_x = 0.35
-    )
-
-    st.plotly_chart(fig)
-
-with cols[1]:
-    # DataFrame con columnas 'semana' (1-N) y 'count'
-    semana_referrals = (
-        df_24[df_24['PH1_reference_$startups'] == 'Referral']
-        .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
-        .assign(semana=lambda d: ((d['fecha'] - inicio_2024).dt.days // 7) + 1)
-        .groupby('semana', as_index=False)['fecha']
-        .size()
-        .rename(columns={'size': 'count'})
-        .sort_values('semana')
-    )
-
-    total_referrals = semana_referrals['count'].sum()
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        x=semana_referrals['semana'],
-        y=semana_referrals['count'],
-        text=semana_referrals['count'],
-        textposition='outside',
-        textfont=dict(color='black'),
-        marker=dict(
-            color="#1FD0EF",
-            line=dict(color="black", width=1.5),
-        ),
-        cliponaxis=False
-    ))
-
-    fig.update_layout(
-        title=f"Referrals Mexico 2024 per week. Total: {total_referrals}",
-        xaxis_title="Week",
-        yaxis_title="Number of Referrals",
-        bargap=0.15,
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
 
 #------------Vamos a sacar los clicks de Bitly---------------------
 # === Funciones para Bitly ===
@@ -651,72 +524,6 @@ fig.update_traces(textposition='outside', textfont=dict(color='black'))
 fig.update_layout(yaxis=dict(dtick=1))
 
 st.plotly_chart(fig, key="grafica_barras_semana_alineada")
-
-#acumulado-------------------------------------------------------------------------
-
-inicio_2025 = pd.to_datetime("2025-06-25")
-inicio_2024 = pd.to_datetime("2024-06-20")
-
-# Preparamos los datos de 2025
-df['Fecha'] = pd.to_datetime(df['Created']).dt.date
-df_evolucion_25 = df.groupby('Fecha').size().reset_index(name='Aplicaciones')
-df_evolucion_25 = df_evolucion_25.sort_values('Fecha')
-df_evolucion_25['Acumulado'] = df_evolucion_25['Aplicaciones'].cumsum()
-
-# Preparamos los datos de 2024
-df_24['Fecha_real'] = pd.to_datetime(df_24['Created']).dt.date
-df_24['Fecha'] = df_24['Fecha_real'] + (inicio_2025.date() - inicio_2024.date())
-
-df_evolucion_24 = df_24.groupby('Fecha').size().reset_index(name='Aplicaciones')
-df_evolucion_24 = df_evolucion_24.sort_values('Fecha')
-df_evolucion_24['Acumulado'] = df_evolucion_24['Aplicaciones'].cumsum()
-
-hoy = pd.Timestamp.today().date()
-
-# Filtrar acumulado de 2025 solo hasta hoy
-df_evolucion_25_filtrado = df_evolucion_25[df_evolucion_25['Fecha'] <= hoy]
-
-# Obtener valor máximo
-max_acumulado_hoy = df_evolucion_25_filtrado['Acumulado'].max()
-limite_superior_y = max_acumulado_hoy + 50
-# Gráfico combinado
-fig = go.Figure()
-
-# Línea azul celeste - 2025
-fig.add_trace(go.Scatter(
-    x=df_evolucion_25['Fecha'],
-    y=df_evolucion_25['Acumulado'],
-    mode='lines+markers',
-    name='2025 Accumulated',
-    line=dict(color='#1FD0EF', shape='spline', width=3),
-    fill='tozeroy',
-    fillcolor='rgba(31, 208, 239, 0.2)'
-))
-
-# Línea naranja - 2024
-fig.add_trace(go.Scatter(
-    x=df_evolucion_24['Fecha'],
-    y=df_evolucion_24['Acumulado'],
-    mode='lines+markers',
-    name='2024 Accumulated',
-    line=dict(color='#FFB950', shape='spline', width=3)
-))
-
-# Diseño
-fig.update_layout(
-    title="Applications Time Evolution - 2025 vs 2024",
-    xaxis_title='Date',
-    yaxis_title='Applications',
-    template='plotly_white',
-    title_font=dict(size=24, color='black'),
-    title_x=0.3,
-    xaxis_range=[df_evolucion_25['Fecha'].min(), hoy],
-     yaxis_range=[0, limite_superior_y]
-)
-
-# Mostrar gráfico
-st.plotly_chart(fig)
-
 
 st.markdown("**<h2>General Metrics</h2>**", unsafe_allow_html=True)
     
