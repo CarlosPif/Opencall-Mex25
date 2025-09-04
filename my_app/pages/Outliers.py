@@ -37,7 +37,7 @@ colors = ['#1FD0EF', '#FFB950', '#FAF3DC', '#1158E5', '#B9C1D4', '#F2F8FA']
 
 #Comenzamos con el dashboard
 st.set_page_config(
-    page_title="Opencall Dashboard Decelera Mexico 2025",
+    page_title="Opencall Dashboard Decelera Mexico 2025<br><br>Outliers Detection",
     layout="wide"
 )
 
@@ -100,6 +100,14 @@ top_distance = top_distance.rename(columns={
     'distancia': 'Distance to having the same score',
     'Judges_Average': 'Judge Evaluation Average'
 })
+
+top_distance['Deck (doc)'] = df['deck_$startup'].apply(
+    lambda x: x[0]['url'] if isinstance(x, list) and len(x) > 0 and isinstance(x[0], dict) and 'url' in x[0] else None
+)
+
+top_distance['deck_icon'] = df['deck_$startup'].apply(
+    lambda x: x[0].get('thumbnails', {}).get('small', {}).get('url') if isinstance(x, list) and x else None
+)
 
 html_table = """
 <div style="overflow-x: auto; width: 100%;">
