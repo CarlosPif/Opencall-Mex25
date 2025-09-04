@@ -85,6 +85,9 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+st.markdown("Below you can see the mean scored each day in order to check the quality of the applicants, divided by reference")
+
+
 #otra vez una de calidad a lo largo del tiempo
 df_quality_int = df[
     (df['Status'] == 'PH4_Judge_Evaluation') |
@@ -205,6 +208,8 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
+
+st.markdown("Let's check the top 10 companies in this evaluation")
 
 #vamos a hacer una tabla de las mejores compañias en jueces
 st.markdown("Top 10 Startups Judge Evaluation")
