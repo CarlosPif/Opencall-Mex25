@@ -84,6 +84,9 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+st.markdown("Below you can see the mean scored each day in order to check the quality of the applicants, divided by reference")
+
+
 #grafica de calidad a lo largo del tiempo
 #nos quedamos con los que han pasado
 df_quality_int = df[
@@ -208,6 +211,8 @@ fig.update_layout(
 )
 
 st.plotly_chart(fig)
+
+st.markdown("Let's check the top 10 companies in this evaluation")
 
 #vamos a poner una tabla interactiva con los 10 mejores
 st.markdown("Top 10 Startups Internal Evaluation")
