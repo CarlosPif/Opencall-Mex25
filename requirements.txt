@@ -1,9 +1,0 @@
-streamlit
-pyairtable
-pandas
-python-dotenv
-plotly
-datetime
-scipy
-matplotlib
-kaleido
