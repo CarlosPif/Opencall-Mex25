@@ -149,7 +149,36 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
-#grafoca de aplicaciones a lo largo del tiempo
+#============================Un conteo de las compañies en tiers============================
+df_tier = df_df.dropna(subset='Tier_Class')
+df_count = df_tier.groupby('Tier_Class').size().reset_index(name='count')
+total_tier = df_count['count'].sum()
+
+fig = go.Figure()
+
+fig.add_trace(go.Bar(
+    x = df_count['Tier_Class'],
+    y = df_count['count'],
+    name='Tier Clasification',
+    text=df_count['count'],
+    textposition='outside',
+    textfont=dict(
+        color='black'
+    ),
+    marker=dict(
+            color="#1FD0EF",
+            line=dict(color="black", width=1.5),
+        ),
+    cliponaxis=False
+))
+
+fig.update_layout(
+        title=f'Companies per Tier. Total: {total_tier} companies'
+)
+
+st.plotly_chart(fig)
+
+#grafica de aplicaciones a lo largo del tiempo
 # Definir el inicio de campaña para cada dataset
 inicio_2025 = pd.to_datetime("25-06-2025")
 inicio_2024 = pd.to_datetime("20-06-2024")
@@ -200,11 +229,11 @@ fig.update_layout(
     title_font=dict(size=20),
     title_x=0.4,
     legend=dict(
-        x=0.95,         # Posición horizontal (0=izq, 1=der)
-        y=0.95,         # Posición vertical (0=abajo, 1=arriba)
-        xanchor='right',  # El punto de anclaje (left, center, right)
-        yanchor='top',    # El punto de anclaje (top, middle, bottom)
-        bgcolor='rgba(255,255,255,0.5)',  # Fondo blanco semitransparente
+        x=0.95,
+        y=0.95,
+        xanchor='right',
+        yanchor='top',
+        bgcolor='rgba(255,255,255,0.5)',
         bordercolor='gray',
         borderwidth=1,
         font=dict(color='black')
