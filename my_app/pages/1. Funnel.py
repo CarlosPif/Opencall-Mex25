@@ -111,7 +111,7 @@ funnel_count = (funnel_count.set_index('Status')
                              .reindex(order, fill_value=0)
                              .reset_index())
 
-funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 478
+funnel_count.loc[funnel_count['Status'] == 'Phase 1', 'count'] += 475
 
 funnel_count['count_cum'] = funnel_count['count'].iloc[::-1].cumsum().iloc[::-1]
 ratio = funnel_count['count_cum'] / funnel_count['count_cum'].shift(1)
