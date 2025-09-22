@@ -101,6 +101,8 @@ df_quality_int = df[
     (df['Status'] == 'PH5_Calls_Done')
 ].dropna(subset='PH3_Final_Score')
 
+df_quality_int = df_quality_int[df_quality_int['PH3_Final_Score'] > 0]
+
 fig = go.Figure()
 
 def add_source_trace(fig, df_src, name, color, legendonly=True):
