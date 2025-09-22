@@ -96,6 +96,8 @@ map_status_to_phase = {
 
 df2 = df_df.copy()
 df2['Status'] = df2['Status'].replace(map_status_to_phase)
+df2.loc[df2['Contract_Status'].notna(), 'Status'] = 'Contracts'
+df2.loc[df2['Contract_Status'] == '8. Contract Signed', 'Status'] = 'Contract Signed'
 
 funnel_count = (df2.groupby('Status', as_index=False)
                   .size()
@@ -105,7 +107,9 @@ order = [
     'Phase 1',
     'Phase 2 & 3 (Internal Evaluation)',
     'Phase 4 (Judge Evaluation)',
-    'Phase 5 (Team Call)'
+    'Phase 5 (Team Call)',
+    'Contracts',
+    'Contract Signed'
 ]
 funnel_count = (funnel_count.set_index('Status')
                              .reindex(order, fill_value=0)
@@ -151,8 +155,13 @@ st.plotly_chart(fig)
 
 #============================Un conteo de las compañies en tiers============================
 df_tier = df_df.dropna(subset='Tier_Class')
+df_tier = df_tier[df_tier['Tier_Class'] != 'Not in Tier Classification']
 df_count = df_tier.groupby('Tier_Class').size().reset_index(name='count')
 total_tier = df_count['count'].sum()
+
+orden = ['Tier 1', 'Tier 2+', 'Tier 2', 'Tier 3']
+df_count['Tier_Class'] = pd.Categorical(df_count['Tier_Class'], categories=orden, ordered=True)
+df_count = df_count.sort_values('Tier_Class')
 
 fig = go.Figure()
 
