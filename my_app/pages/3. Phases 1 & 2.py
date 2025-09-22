@@ -87,6 +87,7 @@ st.plotly_chart(fig)
 #====================================Calidad a lo largo del tiempo==========================
 st.markdown("Below you can see the mean scored each day in order to check the quality of the applicants, divided by reference")
 df_quality_int = df.copy().dropna(subset='PH1&PH2_Sum_Mex25')
+df_quality_int = df_quality_int[df_quality_int['PH1&PH2_Sum_Mex25'] > 0]
 
 fig = go.Figure()
 
@@ -102,7 +103,7 @@ def add_source_trace(fig, df_src, name, color, legendonly=True):
     ))
 
 df_quality_int_agg = df_quality_int.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 mean_value = df_quality_int_agg['average'].mean()
@@ -118,7 +119,7 @@ add_source_trace(
 df_quality_int_agg = df_quality_int[(df_quality_int['PH1_reference_$startups'] == 'Referral') | (df_quality_int['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)")]
 
 df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
@@ -132,7 +133,7 @@ add_source_trace(
 df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == 'LinkedIn']
 
 df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
@@ -146,7 +147,7 @@ add_source_trace(
 df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's team reached out by email"]
 
 df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
@@ -160,7 +161,7 @@ add_source_trace(
 df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's newsletter"]
 
 df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
@@ -174,7 +175,7 @@ add_source_trace(
 df_quality_int_agg = df_quality_int[df_quality_int['PH1_reference_$startups'] == "Decelera's website"]
 
 df_quality_int_agg = df_quality_int_agg.groupby('Created_str', as_index=False).agg(
-    average=('PH3_Final_Score','mean')
+    average=('PH1&PH2_Sum_Mex25','mean')
 )
 df_quality_int_agg = df_quality_int_agg.sort_values('Created_str')
 
