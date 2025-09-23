@@ -95,7 +95,9 @@ df_quality_int = df[
     (df['Status'] == 'PH5_Pending_Team_Calls') |
     (df['Status'] == 'PH5_Pending_BDD') |
     (df['Status'] == 'PH5_Pending_HDD') |
-    (df['Status'] == 'PH5_Calls_Done')
+    (df['Status'] == 'PH5_Calls_Done') |
+    (df['Status'] == 'PH6_Contracts') |
+    (df['Status'] == 'PH6_Dropped_at_Contracts')
 ].dropna(subset='Judges_Average')
 
 fig = go.Figure()
