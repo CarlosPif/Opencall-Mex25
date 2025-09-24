@@ -92,7 +92,7 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
-top_distance = df.sort_values(by='distancia', ascending=False).head(10)
+top_distance = df.sort_values(by='distancia', ascending=False).head(20)
 top_distance['distancia'] = top_distance['distancia'].apply(lambda x: round(x, 2))
 
 top_distance = top_distance.rename(columns={
