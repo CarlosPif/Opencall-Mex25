@@ -256,6 +256,18 @@ with cols[1]:
 
 cols = st.columns(2)
 
+col_limpia = df_24['PH1_reference_$startups'].astype(str).str.strip().str.lower()
+
+mask_startup = col_limpia.str.startswith("startup")
+
+mask_decelera = col_limpia.str.startswith("decelera") & (col_limpia != "decelera linkedin post")
+
+df_24.loc[mask_startup, 'PH1_reference_$startups'] = "Startup Community (i.e. other accelerator)"
+df_24.loc[mask_decelera, 'PH1_reference_$startups'] = "Decelera team reached through email"
+
+with cols[0]:
+    conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
+
 with cols[0]:
     conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
 
