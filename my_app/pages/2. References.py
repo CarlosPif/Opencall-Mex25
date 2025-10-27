@@ -73,7 +73,12 @@ inicio_2024 = pd.to_datetime("20-06-2024")
 #Referencias de las aplicaciones=============================================
 
 reference_data = df['PH1_reference_$startups'].replace(
-{"Referral from within Decelera's community (who?, please specify)": "Referral"}
+{"Referral from within Decelera's community (who?, please specify)": "Referral",
+"General media (blog, magazine, newspaper, etc.) (please specify)": "General media",
+"Other (please specify)": "Other source",
+"Decelera's team reached out by email": "Outbound",
+"Event or conference (please specify wich one)": "Event or conference"
+}
 )
 reference_count = reference_data.value_counts().reset_index(name='count')
 
