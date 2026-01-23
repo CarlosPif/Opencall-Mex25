@@ -70,15 +70,17 @@ st.markdown("**<h1 style='text-align: center;'>Open Call Decelera Mexico 2025</h
 colors = ['#1FD0EF', '#FFB950', '#FAF3DC', '#1158E5', '#B9C1D4', '#F2F8FA']
 inicio_2025 = pd.to_datetime("25-06-2025")
 inicio_2024 = pd.to_datetime("20-06-2024")
-#Referencias de las aplicaciones=============================================
 
+#Referencias de las aplicaciones (MEX 2025 - Pieza Principal) =============
+# Normalizamos primero con replace para agrupar las categorías principales
 reference_data = df['PH1_reference_$startups'].replace(
-{"Referral from within Decelera's community (who?, please specify)": "Referral",
-"General media (blog, magazine, newspaper, etc.) (please specify)": "General media",
-"Other (please specify)": "Other source",
-"Decelera's team reached out by email": "Outbound",
-"Event or conference (please specify wich one)": "Event or conference"
-}
+    {
+        "Referral from within Decelera's community (who?, please specify)": "Referral",
+        "General media (blog, magazine, newspaper, etc.) (please specify)": "General media",
+        "Other (please specify)": "Other source",
+        "Decelera's team reached out by email": "Outbound",
+        "Event or conference (please specify wich one)": "Event or conference"
+    }
 )
 reference_count = reference_data.value_counts().reset_index(name='count')
 
@@ -96,7 +98,6 @@ for i, row in reference_count.iterrows():
         xref='x', yref='y',
         line=dict(color='#1FD0EF', width=2)
     )
-
 
 # Punto (la piruleta)
 fig.add_trace(go.Scatter(
@@ -126,9 +127,9 @@ fig.update_layout(
 st.plotly_chart(fig)
 
 #==================Desglose de references y referrals=======================
-# ── Conteo de cada valor en Source_leads ─────────────────────────
 cols = st.columns(2)
 
+# --- COLUMNA 1: PIE CHART SOURCE LEADS (2025) ---
 with cols[0]:
     source_count = (
         df_df['Source_leads']              
@@ -162,9 +163,14 @@ with cols[0]:
 
     st.plotly_chart(fig, use_container_width=True)
 
+# --- COLUMNA 2: BAR CHART OBJETIVOS (2025) ---
 with cols[1]:
+    # CORRECCIÓN 1: Usamos str.contains para filtrar referrals en Dealflow 2025
+    # Esto soluciona la gráfica vacía si el texto no era 100% exacto
+    mask_ref_df = df_df['PH1_reference_$startups'].astype(str).str.contains("Referral", case=False, na=False)
+    
     df_ref = (
-        df_df[df_df['PH1_reference_$startups'] == "Referral from within Decelera's community (who?, please specify)"]
+        df_df[mask_ref_df]
         .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
         .assign(semana=lambda d: ((d['fecha'] - pd.Timestamp("2025-06-25")).dt.days // 7) + 1)
         .groupby('semana', as_index=False)
@@ -254,21 +260,31 @@ with cols[1]:
     st.plotly_chart(fig)
 
 
+# =============================================================================
+# SECCIÓN 2: DATOS DE 2024
+# =============================================================================
 cols = st.columns(2)
 
-# LIMPIEZA DE NOMBRES PARA 2024
-col_limpia = df_24['PH1_reference_$startups'].astype(str).str.strip().str.lower()
+# CORRECCIÓN 2: Limpieza robusta de nombres para 2024
+# Usamos .str.contains para evitar problemas con espacios o textos ligeramente distintos
+df_24['PH1_reference_$startups'] = df_24['PH1_reference_$startups'].astype(str)
 
-mask_startup = col_limpia.str.startswith("startup")
-mask_decelera = col_limpia.str.startswith("decelera") & (col_limpia != "decelera linkedin post")
+# 1. Prioridad: Detectar Referrals
+mask_referral_24 = df_24['PH1_reference_$startups'].str.contains("Referral", case=False, na=False)
+df_24.loc[mask_referral_24, 'PH1_reference_$startups'] = "Referral"
 
-df_24.loc[mask_startup, 'PH1_reference_$startups'] = "Startup Community (i.e. other accelerator)"
-df_24.loc[mask_decelera, 'PH1_reference_$startups'] = "Decelera team reached through email"
+# 2. Prioridad: Detectar Startups
+mask_startup_24 = df_24['PH1_reference_$startups'].str.contains("startup", case=False, na=False)
+df_24.loc[mask_startup_24, 'PH1_reference_$startups'] = "Startup Community (i.e. other accelerator)"
 
-# FIX: Normalizar también la cadena de Referrals antes de agrupar
-df_24['PH1_reference_$startups'] = df_24['PH1_reference_$startups'].replace(
-    "Referral from within Decelera's community (who?, please specify)", "Referral"
+# 3. Prioridad: Detectar Decelera (excluyendo lo que ya es Referral o Linkedin Post)
+mask_decelera_24 = (
+    df_24['PH1_reference_$startups'].str.contains("decelera", case=False, na=False) & 
+    (df_24['PH1_reference_$startups'] != "Referral") &
+    (~df_24['PH1_reference_$startups'].str.contains("linkedin", case=False, na=False))
 )
+df_24.loc[mask_decelera_24, 'PH1_reference_$startups'] = "Decelera team reached through email"
+
 
 with cols[0]:
     conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
@@ -276,7 +292,7 @@ with cols[0]:
     total_global = conteo_refs['count'].sum()
     conteo_refs['pct'] = conteo_refs['count'] / total_global * 100
 
-    # FIX: Extraer referral_pct de forma segura (antes de convertir low-pct a Others)
+    # Extraemos el valor de Referral con seguridad
     row_referral = conteo_refs.loc[conteo_refs['PH1_reference_$startups'] == 'Referral', 'pct']
     
     if not row_referral.empty:
@@ -284,13 +300,12 @@ with cols[0]:
     else:
         referral_pct = 0
 
-    # Ahora sí aplicamos la lógica de 'Others'
+    # Agrupamos en Others si es menor del 2%
     conteo_refs['PH1_reference_$startups'] = conteo_refs.apply(
         lambda row: 'Others' if row['pct'] < 2 else row['PH1_reference_$startups'],
         axis=1
     )
 
-    # Re-agrupamos por si hubo varios que se convirtieron en 'Others'
     conteo_refs = (
         conteo_refs
         .groupby('PH1_reference_$startups', as_index=False)['count']
@@ -316,7 +331,7 @@ with cols[0]:
 
 with cols[1]:
     # DataFrame con columnas 'semana' (1-N) y 'count'
-    # Como ya hemos hecho el replace arriba, ahora podemos buscar "Referral" directamente
+    # Como ya hemos limpiado arriba con .loc, aquí ya podemos buscar "Referral" exacto tranquilamente
     semana_referrals = (
         df_24[df_24['PH1_reference_$startups'] == 'Referral']
         .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
