@@ -131,8 +131,8 @@ cols = st.columns(2)
 
 with cols[0]:
     source_count = (
-        df_df['Source_leads']             
-            .fillna('Sin fuente')            
+        df_df['Source_leads']              
+            .fillna('Sin fuente')             
             .value_counts()
             .reset_index(name='count')
     )
@@ -145,7 +145,7 @@ with cols[0]:
         values='count',
         title='Referrals Source Mexico 2025',
         hole=0.35,
-        color_discrete_sequence=colors           
+        color_discrete_sequence=colors            
     )
 
     fig.update_layout(
@@ -236,8 +236,8 @@ with cols[1]:
             title='Week'
         ),
         legend=dict(
-            x=0.99,            
-            y=0.99,           
+            x=0.99,             
+            y=0.99,            
             xanchor="right",  
             yanchor="top",
             orientation="v",  
@@ -256,33 +256,41 @@ with cols[1]:
 
 cols = st.columns(2)
 
+# LIMPIEZA DE NOMBRES PARA 2024
 col_limpia = df_24['PH1_reference_$startups'].astype(str).str.strip().str.lower()
 
 mask_startup = col_limpia.str.startswith("startup")
-
 mask_decelera = col_limpia.str.startswith("decelera") & (col_limpia != "decelera linkedin post")
 
 df_24.loc[mask_startup, 'PH1_reference_$startups'] = "Startup Community (i.e. other accelerator)"
 df_24.loc[mask_decelera, 'PH1_reference_$startups'] = "Decelera team reached through email"
 
-with cols[0]:
-    conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
+# FIX: Normalizar también la cadena de Referrals antes de agrupar
+df_24['PH1_reference_$startups'] = df_24['PH1_reference_$startups'].replace(
+    "Referral from within Decelera's community (who?, please specify)", "Referral"
+)
 
 with cols[0]:
     conteo_refs = df_24.groupby('PH1_reference_$startups').size().reset_index(name='count')
-
+    
     total_global = conteo_refs['count'].sum()
     conteo_refs['pct'] = conteo_refs['count'] / total_global * 100
 
+    # FIX: Extraer referral_pct de forma segura (antes de convertir low-pct a Others)
+    row_referral = conteo_refs.loc[conteo_refs['PH1_reference_$startups'] == 'Referral', 'pct']
+    
+    if not row_referral.empty:
+        referral_pct = row_referral.iloc[0]
+    else:
+        referral_pct = 0
+
+    # Ahora sí aplicamos la lógica de 'Others'
     conteo_refs['PH1_reference_$startups'] = conteo_refs.apply(
         lambda row: 'Others' if row['pct'] < 2 else row['PH1_reference_$startups'],
         axis=1
     )
 
-    referral_pct = conteo_refs.loc[
-        conteo_refs['PH1_reference_$startups'] == 'Referral', 'pct'
-        ].iloc[0]
-
+    # Re-agrupamos por si hubo varios que se convirtieron en 'Others'
     conteo_refs = (
         conteo_refs
         .groupby('PH1_reference_$startups', as_index=False)['count']
@@ -308,6 +316,7 @@ with cols[0]:
 
 with cols[1]:
     # DataFrame con columnas 'semana' (1-N) y 'count'
+    # Como ya hemos hecho el replace arriba, ahora podemos buscar "Referral" directamente
     semana_referrals = (
         df_24[df_24['PH1_reference_$startups'] == 'Referral']
         .assign(fecha=lambda d: pd.to_datetime(d['Created_str']))
